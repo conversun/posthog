@@ -48,20 +48,24 @@ services:
             - zookeeper-datalog:/datalog
             - zookeeper-data:/data
             - zookeeper-logs:/logs
+        environment:
+            ZOO_AUTOPURGE_PURGEINTERVAL: 12
     kafka:
         extends:
             file: docker-compose.base.yml
             service: kafka
+        environment:
+            KAFKA_CFG_LOG_RETENTION_HOURS: 24
 
     worker:
         extends:
             file: docker-compose.base.yml
             service: worker
         environment:
-            SENTRY_DSN: $SENTRY_DSN
-            SITE_URL: https://$DOMAIN
-            SECRET_KEY: $POSTHOG_SECRET
-        image: posthog/posthog:$POSTHOG_APP_TAG
+            SENTRY_DSN: 'https://public@sentry.example.com/1'
+            SITE_URL: https://appview.cc
+            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
+        image: posthog/posthog:latest
     web:
         extends:
             file: docker-compose.base.yml
@@ -69,20 +73,21 @@ services:
         command: /compose/start
         volumes:
             - ./compose:/compose
-        image: posthog/posthog:$POSTHOG_APP_TAG
+        image: posthog/posthog:latest
         environment:
-            SENTRY_DSN: $SENTRY_DSN
-            SITE_URL: https://$DOMAIN
-            SECRET_KEY: $POSTHOG_SECRET
+            TRUST_ALL_PROXIES: true
+            SENTRY_DSN: 'https://public@sentry.example.com/1'
+            SITE_URL: https://appview.cc
+            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
     plugins:
         extends:
             file: docker-compose.base.yml
             service: plugins
-        image: posthog/posthog:$POSTHOG_APP_TAG
+        image: posthog/posthog:latest
         environment:
-            SENTRY_DSN: $SENTRY_DSN
-            SITE_URL: https://$DOMAIN
-            SECRET_KEY: $POSTHOG_SECRET
+            SENTRY_DSN: 'https://public@sentry.example.com/1'
+            SITE_URL: https://appview.cc
+            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
 
     caddy:
         image: caddy:2.6.1
@@ -90,6 +95,7 @@ services:
         ports:
             - '80:80'
             - '443:443'
+            - '443:443/udp'
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile
         depends_on:
@@ -106,11 +112,11 @@ services:
         extends:
             file: docker-compose.base.yml
             service: asyncmigrationscheck
-        image: posthog/posthog:$POSTHOG_APP_TAG
+        image: posthog/posthog:latest
         environment:
-            SENTRY_DSN: $SENTRY_DSN
-            SITE_URL: https://$DOMAIN
-            SECRET_KEY: $POSTHOG_SECRET
+            SENTRY_DSN: 'https://public@sentry.example.com/1'
+            SITE_URL: https://appview.cc
+            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
             SKIP_ASYNC_MIGRATIONS_SETUP: 0
 
     # Temporal containers
@@ -141,10 +147,12 @@ services:
             service: temporal-django-worker
         volumes:
             - ./compose:/compose
-        image: posthog/posthog:$POSTHOG_APP_TAG
+        image: posthog/posthog:latest
         environment:
-            SENTRY_DSN: $SENTRY_DSN
-            SITE_URL: https://$DOMAIN
+            SENTRY_DSN: 'https://public@sentry.example.com/1'
+            SITE_URL: https://appview.cc
+            TEMPORAL_HOST: temporal
+            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
 
 volumes:
     zookeeper-data:
