@@ -57,6 +57,7 @@ import { FEATURE_FLAGS } from 'lib/constants'
 import { isInsightVizNode } from '~/queries/utils'
 import { overlayForNewInsightMenu } from 'scenes/saved-insights/newInsightsMenu'
 import { summarizeInsight } from 'scenes/insights/summarizeInsight'
+import { LemonMarkdown } from 'lib/lemon-ui/LemonMarkdown'
 
 interface NewInsightButtonProps {
     dataAttr: string
@@ -241,6 +242,24 @@ export const QUERY_TYPES_METADATA: Record<NodeKind, InsightTypeMetadata> = {
         icon: InsightSQLIcon,
         inMenu: true,
     },
+    [NodeKind.WebTopSourcesQuery]: {
+        name: 'Top Sources',
+        description: 'View top sources for a website',
+        icon: InsightsTrendsIcon,
+        inMenu: true,
+    },
+    [NodeKind.WebTopPagesQuery]: {
+        name: 'Top Pages',
+        description: 'View top pages for a website',
+        icon: InsightsTrendsIcon,
+        inMenu: true,
+    },
+    [NodeKind.WebTopClicksQuery]: {
+        name: 'Top Clicks',
+        description: 'View top clicks for a website',
+        icon: InsightsTrendsIcon,
+        inMenu: true,
+    },
 }
 
 export const INSIGHT_TYPE_OPTIONS: LemonSelectOptions<string> = [
@@ -396,7 +415,9 @@ export function SavedInsights(): JSX.Element {
                             />
                         </span>
                         {hasDashboardCollaboration && insight.description && (
-                            <span className="row-description">{insight.description}</span>
+                            <LemonMarkdown className="row-description" lowKeyHeadings>
+                                {insight.description}
+                            </LemonMarkdown>
                         )}
                     </>
                 )

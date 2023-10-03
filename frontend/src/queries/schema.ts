@@ -57,6 +57,11 @@ export enum NodeKind {
     StickinessQuery = 'StickinessQuery',
     LifecycleQuery = 'LifecycleQuery',
 
+    // Web analytics queries
+    WebTopSourcesQuery = 'WebTopSourcesQuery',
+    WebTopPagesQuery = 'WebTopPagesQuery',
+    WebTopClicksQuery = 'WebTopClicksQuery',
+
     // Time to see data
     TimeToSeeDataSessionsQuery = 'TimeToSeeDataSessionsQuery',
     TimeToSeeDataQuery = 'TimeToSeeDataQuery',
@@ -75,6 +80,9 @@ export type AnyDataNode =
     | HogQLQuery
     | HogQLMetadata
     | TimeToSeeDataSessionsQuery
+    | WebTopSourcesQuery
+    | WebTopClicksQuery
+    | WebTopPagesQuery
 
 export type QuerySchema =
     // Data nodes (see utils.ts)
@@ -195,6 +203,7 @@ export interface ActionsNode extends EntityNode {
     kind: NodeKind.ActionsNode
     id: number
 }
+
 export interface QueryTiming {
     /** Key. Shortened to 'k' to save on data. */
     k: string
@@ -276,7 +285,15 @@ export type HasPropertiesNode = EventsNode | EventsQuery | PersonsNode
 export interface DataTableNode extends Node, DataTableNodeViewProps {
     kind: NodeKind.DataTableNode
     /** Source of the events */
-    source: EventsNode | EventsQuery | PersonsNode | HogQLQuery | TimeToSeeDataSessionsQuery
+    source:
+        | EventsNode
+        | EventsQuery
+        | PersonsNode
+        | HogQLQuery
+        | TimeToSeeDataSessionsQuery
+        | WebTopSourcesQuery
+        | WebTopClicksQuery
+        | WebTopPagesQuery
 
     /** Columns shown in the table, unless the `source` provides them. */
     columns?: HogQLExpression[]
@@ -374,6 +391,11 @@ export type TrendsFilter = Omit<
     TrendsFilterType & { hidden_legend_indexes?: number[] },
     keyof FilterType | 'hidden_legend_keys'
 >
+
+export interface TrendsQueryResponse extends QueryResponse {
+    result: Record<string, any>[]
+}
+
 export interface TrendsQuery extends InsightsQueryBase {
     kind: NodeKind.TrendsQuery
     /** Granularity of the response. Can be one of `hour`, `day`, `week` or `month` */
@@ -384,13 +406,22 @@ export interface TrendsQuery extends InsightsQueryBase {
     trendsFilter?: TrendsFilter
     /** Breakdown of the events and actions */
     breakdown?: BreakdownFilter
+    response?: TrendsQueryResponse
 }
 
-/** `FunnelsFilterType` minus everything inherited from `FilterType` and
- * `hidden_legend_keys` replaced by `hidden_legend_breakdowns` */
+/** `FunnelsFilterType` minus everything inherited from `FilterType` and persons modal related params
+ * and `hidden_legend_keys` replaced by `hidden_legend_breakdowns` */
 export type FunnelsFilter = Omit<
     FunnelsFilterType & { hidden_legend_breakdowns?: string[] },
-    keyof FilterType | 'hidden_legend_keys'
+    | keyof FilterType
+    | 'hidden_legend_keys'
+    | 'funnel_step_breakdown'
+    | 'funnel_correlation_person_entity'
+    | 'funnel_correlation_person_converted'
+    | 'entrance_period_start'
+    | 'drop_off'
+    | 'funnel_step'
+    | 'funnel_custom_steps'
 >
 export interface FunnelsQuery extends InsightsQueryBase {
     kind: NodeKind.FunnelsQuery
@@ -412,19 +443,22 @@ export interface RetentionQuery extends InsightsQueryBase {
     retentionFilter?: RetentionFilter
 }
 
-/** `PathsFilterType` minus everything inherited from `FilterType` */
-export type PathsFilter = Omit<PathsFilterType, keyof FilterType>
+/** `PathsFilterType` minus everything inherited from `FilterType` and persons modal related params */
+export type PathsFilter = Omit<
+    PathsFilterType,
+    keyof FilterType | 'path_start_key' | 'path_end_key' | 'path_dropoff_key'
+>
 export interface PathsQuery extends InsightsQueryBase {
     kind: NodeKind.PathsQuery
     /** Properties specific to the paths insight */
     pathsFilter?: PathsFilter
 }
 
-/** `StickinessFilterType` minus everything inherited from `FilterType` and
- * `hidden_legend_keys` replaced by `hidden_legend_indexes` */
+/** `StickinessFilterType` minus everything inherited from `FilterType` and persons modal related params
+ * and `hidden_legend_keys` replaced by `hidden_legend_indexes` */
 export type StickinessFilter = Omit<
     StickinessFilterType & { hidden_legend_indexes?: number[] },
-    keyof FilterType | 'hidden_legend_keys'
+    keyof FilterType | 'hidden_legend_keys' | 'stickiness_days'
 >
 export interface StickinessQuery extends InsightsQueryBase {
     kind: NodeKind.StickinessQuery
@@ -463,6 +497,45 @@ export interface LifecycleQuery extends InsightsQueryBase {
     /** Properties specific to the lifecycle insight */
     lifecycleFilter?: LifecycleFilter
     response?: LifecycleQueryResponse
+}
+
+export type WebAnalyticsFilters = any
+
+export interface WebAnalyticsQueryBase {
+    dateRange?: DateRange
+}
+
+export interface WebTopSourcesQuery extends WebAnalyticsQueryBase {
+    kind: NodeKind.WebTopSourcesQuery
+    filters: WebAnalyticsFilters
+    response?: WebTopSourcesQueryResponse
+}
+export interface WebTopSourcesQueryResponse extends QueryResponse {
+    result: unknown[]
+    types?: unknown[]
+    columns?: unknown[]
+}
+
+export interface WebTopClicksQuery extends WebAnalyticsQueryBase {
+    kind: NodeKind.WebTopClicksQuery
+    filters: WebAnalyticsFilters
+    response?: WebTopClicksQueryResponse
+}
+export interface WebTopClicksQueryResponse extends QueryResponse {
+    result: unknown[]
+    types?: unknown[]
+    columns?: unknown[]
+}
+
+export interface WebTopPagesQuery extends WebAnalyticsQueryBase {
+    kind: NodeKind.WebTopPagesQuery
+    filters: WebAnalyticsFilters
+    response?: WebTopPagesQueryResponse
+}
+export interface WebTopPagesQueryResponse extends QueryResponse {
+    result: unknown[]
+    types?: unknown[]
+    columns?: unknown[]
 }
 
 export type InsightQueryNode =

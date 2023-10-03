@@ -8,11 +8,11 @@ import { urls } from 'scenes/urls'
 import {
     Breadcrumb,
     ChartDisplayType,
-    FeatureFlagFilters,
     PluginType,
     PropertyFilterType,
     PropertyOperator,
     Survey,
+    SurveyQuestionBase,
     SurveyQuestionType,
     SurveyType,
 } from '~/types'
@@ -23,58 +23,15 @@ import { dayjs } from 'lib/dayjs'
 import { pluginsLogic } from 'scenes/plugins/pluginsLogic'
 import { eventUsageLogic } from 'lib/utils/eventUsageLogic'
 import { featureFlagLogic } from 'scenes/feature-flags/featureFlagLogic'
-
-export interface NewSurvey
-    extends Pick<
-        Survey,
-        | 'name'
-        | 'description'
-        | 'type'
-        | 'conditions'
-        | 'questions'
-        | 'start_date'
-        | 'end_date'
-        | 'linked_flag'
-        | 'targeting_flag'
-        | 'archived'
-        | 'appearance'
-    > {
-    id: 'new'
-    linked_flag_id: number | undefined
-    targeting_flag_filters: Pick<FeatureFlagFilters, 'groups'> | undefined
-}
-
-export const defaultSurveyAppearance = {
-    backgroundColor: 'white',
-    submitButtonColor: '#2C2C2C',
-    textColor: 'black',
-    submitButtonText: 'Submit',
-    descriptionTextColor: '#4b4b52',
-    whiteLabel: false,
-    displayThankYouMessage: true,
-    thankYouMessageHeader: 'Thank you for your feedback!',
-}
-
-export const NEW_SURVEY: NewSurvey = {
-    id: 'new',
-    name: '',
-    description: '',
-    questions: [{ type: SurveyQuestionType.Open, question: '' }],
-    type: SurveyType.Popover,
-    linked_flag_id: undefined,
-    targeting_flag_filters: undefined,
-    linked_flag: null,
-    targeting_flag: null,
-    start_date: null,
-    end_date: null,
-    conditions: null,
-    archived: false,
-    appearance: defaultSurveyAppearance,
-}
-
-export const surveyEventName = 'survey sent'
-
-const SURVEY_RESPONSE_PROPERTY = '$survey_response'
+import { featureFlagLogic as enabledFlagLogic } from 'lib/logic/featureFlagLogic'
+import { FEATURE_FLAGS } from 'lib/constants'
+import {
+    defaultSurveyFieldValues,
+    SURVEY_EVENT_NAME,
+    SURVEY_RESPONSE_PROPERTY,
+    NEW_SURVEY,
+    NewSurvey,
+} from './constants'
 
 export interface SurveyLogicProps {
     id: string | 'new'
@@ -104,10 +61,26 @@ export const surveyLogic = kea<surveyLogicType>([
                 'reportSurveyViewed',
             ],
         ],
-        values: [pluginsLogic, ['installedPlugins', 'loading as pluginsLoading', 'enabledPlugins']],
+        values: [
+            pluginsLogic,
+            ['installedPlugins', 'loading as pluginsLoading', 'enabledPlugins'],
+            enabledFlagLogic,
+            ['featureFlags as enabledFlags'],
+        ],
     })),
     actions({
         editingSurvey: (editing: boolean) => ({ editing }),
+        setDefaultForQuestionType: (
+            type: SurveyQuestionType,
+            isEditingQuestion: boolean,
+            isEditingDescription: boolean,
+            isEditingThankYouMessage: boolean
+        ) => ({
+            type,
+            isEditingQuestion,
+            isEditingDescription,
+            isEditingThankYouMessage,
+        }),
         launchSurvey: true,
         stopSurvey: true,
         archiveSurvey: true,
@@ -178,6 +151,42 @@ export const surveyLogic = kea<surveyLogicType>([
                 editingSurvey: (_, { editing }) => editing,
             },
         ],
+        survey: [
+            { ...NEW_SURVEY } as NewSurvey | Survey,
+            {
+                setDefaultForQuestionType: (
+                    state,
+                    { type, isEditingQuestion, isEditingDescription, isEditingThankYouMessage }
+                ) => {
+                    const question = isEditingQuestion
+                        ? state.questions[0].question
+                        : defaultSurveyFieldValues[type].questions[0].question
+                    const description = isEditingDescription
+                        ? state.questions[0].description
+                        : defaultSurveyFieldValues[type].questions[0].description
+                    const thankYouMessageHeader = isEditingThankYouMessage
+                        ? state.appearance.thankYouMessageHeader
+                        : defaultSurveyFieldValues[type].appearance.thankYouMessageHeader
+
+                    return {
+                        ...state,
+                        questions: [
+                            {
+                                ...state.questions[0],
+                                ...(defaultSurveyFieldValues[type].questions[0] as SurveyQuestionBase),
+                                question,
+                                description,
+                            },
+                        ],
+                        appearance: {
+                            ...state.appearance,
+                            ...defaultSurveyFieldValues[type].appearance,
+                            thankYouMessageHeader,
+                        },
+                    }
+                },
+            },
+        ],
     }),
     selectors({
         isSurveyRunning: [
@@ -204,12 +213,15 @@ export const surveyLogic = kea<surveyLogicType>([
             },
         ],
         showSurveyAppWarning: [
-            (s) => [s.survey, s.enabledPlugins, s.pluginsLoading],
-            (survey: Survey, enabledPlugins: PluginType[], pluginsLoading: boolean): boolean => {
-                return !!(
-                    survey.type !== SurveyType.API &&
-                    !pluginsLoading &&
-                    !enabledPlugins.find((plugin) => plugin.name === 'Surveys app')
+            (s) => [s.survey, s.enabledPlugins, s.pluginsLoading, s.enabledFlags],
+            (survey: Survey, enabledPlugins: PluginType[], pluginsLoading: boolean, enabledFlags): boolean => {
+                return (
+                    !enabledFlags[FEATURE_FLAGS.SURVEYS_SITE_APP_DEPRECATION] &&
+                    !!(
+                        survey.type !== SurveyType.API &&
+                        !pluginsLoading &&
+                        !enabledPlugins.find((plugin) => plugin.name === 'Surveys app')
+                    )
                 )
             },
         ],
@@ -227,7 +239,7 @@ export const surveyLogic = kea<surveyLogicType>([
                         kind: NodeKind.EventsQuery,
                         select: ['*', `properties.${SURVEY_RESPONSE_PROPERTY}`, 'timestamp', 'person'],
                         orderBy: ['timestamp DESC'],
-                        where: [`event == 'survey sent' or event == '${survey.name} survey sent'`],
+                        where: [`event == 'survey sent'`],
                         after: createdAt,
                         properties: [
                             {
@@ -308,7 +320,7 @@ export const surveyLogic = kea<surveyLogicType>([
                                 value: survey.id,
                             },
                         ],
-                        series: [{ event: surveyEventName, kind: NodeKind.EventsNode }],
+                        series: [{ event: SURVEY_EVENT_NAME, kind: NodeKind.EventsNode }],
                         trendsFilter: { display: ChartDisplayType.ActionsBarValue },
                         breakdown: { breakdown: '$survey_response', breakdown_type: 'event' },
                     },
