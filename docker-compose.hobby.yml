@@ -90,7 +90,7 @@ services:
             SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
 
     caddy:
-        image: caddy:2.6.1
+        image: caddy:2
         restart: unless-stopped
         ports:
             - '80:80'
