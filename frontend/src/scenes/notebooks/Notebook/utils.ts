@@ -46,12 +46,9 @@ export type NotebookNodeViewProps<T extends CustomNotebookNodeAttributes> = Omit
         node: NotebookNode
     }
 
-export type NotebookNodeWidget = {
-    key: string
-    label?: string
+export type NotebookNodeSettings =
     // using 'any' here shouldn't be necessary but, I couldn't figure out how to set a generic on the notebookNodeLogic props
-    Component: ({ attributes, updateAttributes }: NotebookNodeAttributeProperties<any>) => JSX.Element
-}
+    (({ attributes, updateAttributes }: NotebookNodeAttributeProperties<any>) => JSX.Element) | null
 
 export type NotebookNodeAction = Pick<LemonButtonProps, 'icon'> & {
     text: string
@@ -67,6 +64,7 @@ export interface NotebookEditor {
     setEditable: (editable: boolean) => void
     setContent: (content: JSONContent) => void
     setSelection: (position: number) => void
+    setTextSelection: (position: number | EditorRange) => void
     focus: (position: EditorFocusPosition) => void
     destroy: () => void
     deleteRange: (range: EditorRange) => EditorCommands
