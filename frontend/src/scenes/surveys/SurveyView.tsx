@@ -28,7 +28,7 @@ import { dayjs } from 'lib/dayjs'
 import { defaultSurveyAppearance, SURVEY_EVENT_NAME } from './constants'
 import { FEATURE_FLAGS } from 'lib/constants'
 import { featureFlagLogic } from 'lib/logic/featureFlagLogic'
-import { RatingQuestionBarChart, Summary } from './surveyViewViz'
+import { Summary, RatingQuestionBarChart, SingleChoiceQuestionPieChart } from './surveyViewViz'
 
 export function SurveyView({ id }: { id: string }): JSX.Element {
     const { survey, surveyLoading } = useValues(surveyLogic)
@@ -71,7 +71,12 @@ export function SurveyView({ id }: { id: string }): JSX.Element {
                                                     Archive
                                                 </LemonButton>
                                             )}
-                                            <LemonButton status="danger" fullWidth onClick={() => deleteSurvey(id)}>
+                                            <LemonButton
+                                                status="danger"
+                                                data-attr="delete-survey"
+                                                fullWidth
+                                                onClick={() => deleteSurvey(id)}
+                                            >
                                                 Delete survey
                                             </LemonButton>
                                         </>
@@ -81,6 +86,7 @@ export function SurveyView({ id }: { id: string }): JSX.Element {
                                 {!survey.start_date ? (
                                     <LemonButton
                                         type="primary"
+                                        data-attr="launch-survey"
                                         onClick={() => {
                                             launchSurvey()
                                         }}
@@ -255,6 +261,8 @@ export function SurveyResult({ disableEventsTable }: { disableEventsTable?: bool
         surveyUserStatsLoading,
         surveyRatingResults,
         surveyRatingResultsReady,
+        surveySingleChoiceResults,
+        surveySingleChoiceResultsReady,
     } = useValues(surveyLogic)
     const { setCurrentQuestionIndexAndType } = useActions(surveyLogic)
     const { featureFlags } = useValues(featureFlagLogic)
@@ -265,14 +273,22 @@ export function SurveyResult({ disableEventsTable }: { disableEventsTable?: bool
                 <>
                     <Summary surveyUserStatsLoading={surveyUserStatsLoading} surveyUserStats={surveyUserStats} />
                     {survey.questions.map((question, i) => {
-                        if (question.type === 'rating') {
+                        if (question.type === SurveyQuestionType.Rating) {
                             return (
                                 <RatingQuestionBarChart
                                     key={`survey-q-${i}`}
                                     surveyRatingResults={surveyRatingResults}
                                     surveyRatingResultsReady={surveyRatingResultsReady}
                                     questionIndex={i}
-                                    question={question}
+                                />
+                            )
+                        } else if (question.type === SurveyQuestionType.SingleChoice) {
+                            return (
+                                <SingleChoiceQuestionPieChart
+                                    key={`survey-q-${i}`}
+                                    surveySingleChoiceResults={surveySingleChoiceResults}
+                                    surveySingleChoiceResultsReady={surveySingleChoiceResultsReady}
+                                    questionIndex={i}
                                 />
                             )
                         }

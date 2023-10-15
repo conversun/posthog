@@ -21,7 +21,9 @@ import {
     HogQLMathType,
     InsightLogicProps,
     InsightShortId,
+    EventPropertyFilter,
 } from '~/types'
+import { ComponentType } from 'react'
 
 /**
  * PostHog Query Schema definition.
@@ -128,6 +130,12 @@ export interface DataNode extends Node {
     response?: Record<string, any>
 }
 
+/** HogQL Query Options are automatically set per team. However, they can be overriden in the query. */
+export interface HogQLQueryModifiers {
+    personsOnEventsMode?: 'disabled' | 'v1_enabled' | 'v2_enabled'
+    personsArgMaxVersion?: 'auto' | 'v1' | 'v2'
+}
+
 export interface HogQLQueryResponse {
     query?: string
     hogql?: string
@@ -136,6 +144,7 @@ export interface HogQLQueryResponse {
     types?: any[]
     columns?: any[]
     timings?: QueryTiming[]
+    modifiers?: HogQLQueryModifiers
 }
 
 /** Filters object that will be converted to a HogQL {filters} placeholder */
@@ -150,6 +159,7 @@ export interface HogQLQuery extends DataNode {
     filters?: HogQLFilters
     /** Constant values that can be referenced with the {placeholder} syntax in the query */
     values?: Record<string, any>
+    modifiers?: HogQLQueryModifiers
     response?: HogQLQueryResponse
 }
 
@@ -533,7 +543,7 @@ export interface PersonsQuery extends DataNode {
     response?: PersonsQueryResponse
 }
 
-export type WebAnalyticsFilters = any
+export type WebAnalyticsPropertyFilters = EventPropertyFilter[]
 
 export interface WebAnalyticsQueryBase {
     dateRange?: DateRange
@@ -541,7 +551,7 @@ export interface WebAnalyticsQueryBase {
 
 export interface WebOverviewStatsQuery extends WebAnalyticsQueryBase {
     kind: NodeKind.WebOverviewStatsQuery
-    filters: WebAnalyticsFilters
+    properties: WebAnalyticsPropertyFilters
     response?: WebOverviewStatsQueryResponse
 }
 
@@ -552,7 +562,7 @@ export interface WebOverviewStatsQueryResponse extends QueryResponse {
 }
 export interface WebTopSourcesQuery extends WebAnalyticsQueryBase {
     kind: NodeKind.WebTopSourcesQuery
-    filters: WebAnalyticsFilters
+    properties: WebAnalyticsPropertyFilters
     response?: WebTopSourcesQueryResponse
 }
 export interface WebTopSourcesQueryResponse extends QueryResponse {
@@ -563,7 +573,7 @@ export interface WebTopSourcesQueryResponse extends QueryResponse {
 
 export interface WebTopClicksQuery extends WebAnalyticsQueryBase {
     kind: NodeKind.WebTopClicksQuery
-    filters: WebAnalyticsFilters
+    properties: WebAnalyticsPropertyFilters
     response?: WebTopClicksQueryResponse
 }
 export interface WebTopClicksQueryResponse extends QueryResponse {
@@ -574,7 +584,7 @@ export interface WebTopClicksQueryResponse extends QueryResponse {
 
 export interface WebTopPagesQuery extends WebAnalyticsQueryBase {
     kind: NodeKind.WebTopPagesQuery
-    filters: WebAnalyticsFilters
+    properties: WebAnalyticsPropertyFilters
     response?: WebTopPagesQueryResponse
 }
 export interface WebTopPagesQueryResponse extends QueryResponse {
@@ -702,7 +712,9 @@ export interface QueryContext {
     emptyStateDetail?: string
 }
 
+export type QueryContextColumnComponent = ComponentType<{ record: any; columnName: string; value: any }>
+
 interface QueryContextColumn {
     title?: string
-    render?: (props: { record: any }) => JSX.Element
+    render?: QueryContextColumnComponent
 }
