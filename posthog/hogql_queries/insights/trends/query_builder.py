@@ -4,6 +4,7 @@ from posthog.hogql.parser import parse_expr, parse_select
 from posthog.hogql.property import property_to_expr
 from posthog.hogql.timings import HogQLTimings
 from posthog.hogql_queries.insights.trends.breakdown import Breakdown
+from posthog.hogql_queries.insights.trends.breakdown_session import BreakdownSession
 from posthog.hogql_queries.insights.trends.utils import series_event_name
 from posthog.hogql_queries.utils.query_date_range import QueryDateRange
 from posthog.models.filters.mixins.utils import cached_property
@@ -112,21 +113,24 @@ class TrendsQueryBuilder:
                     {aggregation_operation} AS total,
                     dateTrunc({interval}, toTimeZone(toDateTime(timestamp), 'UTC')) AS day_start
                 FROM events AS e
-                %s
+                SAMPLE {sample}
                 WHERE {events_filter}
                 GROUP BY day_start
-            """
-            % (self._sample_value()),
+            """,
             placeholders={
                 **self.query_date_range.to_placeholders(),
                 "events_filter": self._events_filter(),
                 "aggregation_operation": self._aggregation_operation(),
+                "sample": self._sample_value(),
             },
         )
 
         if self._breakdown.enabled:
             query.select.append(self._breakdown.column_expr())
             query.group_by.append(ast.Field(chain=["breakdown_value"]))
+
+            if self._breakdown.is_session_type:
+                query.select_from = self._breakdown_session.session_inner_join()
 
         return query
 
@@ -214,6 +218,14 @@ class TrendsQueryBuilder:
         # Breakdown
         if self._breakdown.enabled and not self._breakdown.is_histogram_breakdown:
             filters.append(self._breakdown.events_where_filter())
+        if self._breakdown.is_session_type:
+            filters.append(
+                ast.CompareOperation(
+                    left=self._breakdown_session.session_duration_field(),
+                    op=ast.CompareOperationOp.NotEq,
+                    right=ast.Constant(value=None),
+                )
+            )
 
         if len(filters) == 0:
             return ast.Constant(value=True)
@@ -226,15 +238,25 @@ class TrendsQueryBuilder:
         if self.series.math == "hogql":
             return parse_expr(self.series.math_hogql)
 
-        return parse_expr("count(*)")
+        return parse_expr("count(e.uuid)")
 
     # Using string interpolation for SAMPLE due to HogQL limitations with `UNION ALL` and `SAMPLE` AST nodes
     def _sample_value(self) -> str:
         if self.query.samplingFactor is None:
-            return ""
+            return ast.RatioExpr(left=ast.Constant(value=1))
 
-        return f"SAMPLE {self.query.samplingFactor}"
+        return ast.RatioExpr(left=ast.Constant(value=self.query.samplingFactor))
 
     @cached_property
     def _breakdown(self):
-        return Breakdown(team=self.team, query=self.query, series=self.series, query_date_range=self.query_date_range)
+        return Breakdown(
+            team=self.team,
+            query=self.query,
+            series=self.series,
+            query_date_range=self.query_date_range,
+            timings=self.timings,
+        )
+
+    @cached_property
+    def _breakdown_session(self):
+        return BreakdownSession(self.query_date_range)

@@ -46,7 +46,7 @@ def parse_expr(
         node = RULE_TO_PARSE_FUNCTION[backend]["expr"](expr, start)
         if placeholders:
             with timings.measure("replace_placeholders"):
-                return replace_placeholders(node, placeholders)
+                node = replace_placeholders(node, placeholders)
     return node
 
 
@@ -63,7 +63,7 @@ def parse_order_expr(
         node = RULE_TO_PARSE_FUNCTION[backend]["order_expr"](order_expr)
         if placeholders:
             with timings.measure("replace_placeholders"):
-                return replace_placeholders(node, placeholders)
+                node = replace_placeholders(node, placeholders)
     return node
 
 
@@ -363,6 +363,9 @@ class HogQLParseTreeConverter(ParseTreeVisitor):
         return ast.OrderExpr(expr=self.visit(ctx.columnExpr()), order=cast(Literal["ASC", "DESC"], order))
 
     def visitRatioExpr(self, ctx: HogQLParser.RatioExprContext):
+        if ctx.PLACEHOLDER():
+            return ast.Placeholder(field=parse_string_literal(ctx.PLACEHOLDER()))
+
         number_literals = ctx.numberLiteral()
 
         left = number_literals[0]
