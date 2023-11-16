@@ -1,10 +1,19 @@
 import posthog from 'posthog-js'
 import { actions, connect, kea, key, listeners, path, props, selectors, reducers } from 'kea'
-import { BaseMathType, ChartDisplayType, InsightLogicProps, IntervalType } from '~/types'
+import {
+    BaseMathType,
+    ChartDisplayType,
+    FilterType,
+    FunnelExclusion,
+    InsightLogicProps,
+    IntervalType,
+    TrendsFilterType,
+} from '~/types'
 import { keyForInsightLogicProps } from 'scenes/insights/sharedUtils'
 import {
     BreakdownFilter,
     DateRange,
+    FunnelsQuery,
     InsightFilter,
     InsightQueryNode,
     InsightVizNode,
@@ -30,7 +39,11 @@ import {
     isTrendsQuery,
     nodeKindToFilterProperty,
 } from '~/queries/utils'
-import { NON_TIME_SERIES_DISPLAY_TYPES, PERCENT_STACK_VIEW_DISPLAY_TYPE } from 'lib/constants'
+import {
+    NON_TIME_SERIES_DISPLAY_TYPES,
+    NON_VALUES_ON_SERIES_DISPLAY_TYPES,
+    PERCENT_STACK_VIEW_DISPLAY_TYPE,
+} from 'lib/constants'
 import {
     getBreakdown,
     getCompare,
@@ -118,12 +131,30 @@ export const insightVizDataLogic = kea<insightVizDataLogicType>([
         isLifecycle: [(s) => [s.querySource], (q) => isLifecycleQuery(q)],
         isTrendsLike: [(s) => [s.querySource], (q) => isTrendsQuery(q) || isLifecycleQuery(q) || isStickinessQuery(q)],
         supportsDisplay: [(s) => [s.querySource], (q) => isTrendsQuery(q) || isStickinessQuery(q)],
-        supportsCompare: [(s) => [s.querySource], (q) => isTrendsQuery(q) || isStickinessQuery(q)],
+        supportsCompare: [
+            (s) => [s.querySource, s.display, s.dateRange],
+            (q, display, dateRange) =>
+                (isTrendsQuery(q) || isStickinessQuery(q)) &&
+                display !== ChartDisplayType.WorldMap &&
+                dateRange?.date_from !== 'all',
+        ],
         supportsPercentStackView: [
             (s) => [s.querySource, s.display],
             (q, display) =>
                 isTrendsQuery(q) &&
                 PERCENT_STACK_VIEW_DISPLAY_TYPE.includes(display || ChartDisplayType.ActionsLineGraph),
+        ],
+        supportsValueOnSeries: [
+            (s) => [s.isTrends, s.isStickiness, s.isLifecycle, s.display],
+            (isTrends, isStickiness, isLifecycle, display) => {
+                if (isTrends || isStickiness) {
+                    return !NON_VALUES_ON_SERIES_DISPLAY_TYPES.includes(display || ChartDisplayType.ActionsLineGraph)
+                } else if (isLifecycle) {
+                    return true
+                } else {
+                    return false
+                }
+            },
         ],
 
         dateRange: [(s) => [s.querySource], (q) => (q ? q.dateRange : null)],
@@ -188,6 +219,20 @@ export const insightVizDataLogic = kea<insightVizDataLogicType>([
             },
         ],
 
+        valueOnSeries: [
+            (s) => [s.isTrends, s.isStickiness, s.isLifecycle, s.insightFilter],
+            (isTrends, isStickiness, isLifecycle, insightFilter): boolean => {
+                return !!(
+                    ((isTrends || isStickiness || isLifecycle) &&
+                        (insightFilter as TrendsFilterType)?.show_values_on_series) ||
+                    // pie charts have value checked by default
+                    (isTrends &&
+                        (insightFilter as TrendsFilterType)?.display === ChartDisplayType.ActionsPie &&
+                        (insightFilter as TrendsFilterType)?.show_values_on_series === undefined)
+                )
+            },
+        ],
+
         hasLegend: [
             (s) => [s.isTrends, s.isStickiness, s.display],
             (isTrends, isStickiness, display) =>
@@ -237,6 +282,37 @@ export const insightVizDataLogic = kea<insightVizDataLogicType>([
         ],
 
         timezone: [(s) => [s.insightData], (insightData) => insightData?.timezone || 'UTC'],
+
+        /*
+         * Funnels
+         */
+        isFunnelWithEnoughSteps: [
+            (s) => [s.series],
+            (series) => {
+                return (series?.length || 0) > 1
+            },
+        ],
+
+        // Exclusion filters
+        exclusionDefaultStepRange: [
+            (s) => [s.querySource],
+            (querySource: FunnelsQuery): Omit<FunnelExclusion, 'id' | 'name'> => ({
+                funnel_from_step: 0,
+                funnel_to_step: (querySource.series || []).length > 1 ? querySource.series.length - 1 : 1,
+            }),
+        ],
+        exclusionFilters: [
+            (s) => [s.funnelsFilter],
+            (funnelsFilter): FilterType => ({
+                events: funnelsFilter?.exclusions,
+            }),
+        ],
+        areExclusionFiltersValid: [
+            (s) => [s.insightDataError],
+            (insightDataError): boolean => {
+                return !(insightDataError?.status === 400 && insightDataError?.type === 'validation_error')
+            },
+        ],
     }),
 
     listeners(({ actions, values, props }) => ({
