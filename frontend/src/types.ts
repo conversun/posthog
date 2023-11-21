@@ -279,6 +279,8 @@ export interface ExplicitTeamMemberType extends BaseMemberType {
     effective_level: OrganizationMembershipLevel
 }
 
+export type EitherMemberType = OrganizationMemberType | ExplicitTeamMemberType
+
 /**
  * While OrganizationMemberType and ExplicitTeamMemberType refer to actual Django models,
  * this interface is only used in the frontend for fusing the data from these models together.
@@ -524,6 +526,12 @@ export enum PipelineTabs {
     Filters = 'filters',
     Transformations = 'transformations',
     Destinations = 'destinations',
+}
+
+export enum PipelineAppTabs {
+    Configuration = 'configuration',
+    Logs = 'logs',
+    Metrics = 'metrics',
 }
 
 export enum ProgressStatus {
@@ -1272,6 +1280,7 @@ export interface BillingV2PlanType {
     current_plan?: any
     tiers?: BillingV2TierType[]
     included_if?: 'no_active_subscription' | 'has_subscription' | null
+    initial_billing_limit?: number
 }
 
 export interface PlanInterface {
@@ -1341,7 +1350,7 @@ export interface InsightModel extends Cacheable {
     description?: string
     favorited?: boolean
     order: number | null
-    result: any | null
+    result: any
     deleted: boolean
     saved: boolean
     created_at: string
@@ -2683,6 +2692,11 @@ export interface KeyMapping {
     system?: boolean
 }
 
+export interface KeyMappingInterface {
+    event: Record<string, KeyMapping>
+    element: Record<string, KeyMapping>
+}
+
 export interface TileParams {
     title: string
     targetPath: string
@@ -2746,16 +2760,30 @@ export interface DateMappingOption {
     defaultInterval?: IntervalType
 }
 
-export interface Breadcrumb {
+interface BreadcrumbBase {
+    /** E.g. scene identifier or item ID. Particularly important if `onRename` is used. */
+    key: string | number
     /** Name to display. */
     name: string | null | undefined
     /** Symbol, e.g. a lettermark or a profile picture. */
     symbol?: React.ReactNode
-    /** Path to link to. */
-    path?: string
     /** Whether to show a custom popover */
     popover?: Pick<PopoverProps, 'overlay' | 'sameWidth' | 'actionable'>
 }
+interface LinkBreadcrumb extends BreadcrumbBase {
+    /** Path to link to. */
+    path?: string
+    onRename?: never
+}
+interface RenamableBreadcrumb extends BreadcrumbBase {
+    path?: never
+    /** When this is set, an "Edit" button shows up next to the title */
+    onRename?: (newName: string) => Promise<void>
+}
+export type Breadcrumb = LinkBreadcrumb | RenamableBreadcrumb
+export type FinalizedBreadcrumb =
+    | (LinkBreadcrumb & { globalKey: string })
+    | (RenamableBreadcrumb & { globalKey: string })
 
 export enum GraphType {
     Bar = 'bar',
@@ -3388,6 +3416,23 @@ export enum SDKTag {
 }
 
 export type SDKInstructionsMap = Partial<Record<SDKKey, React.ReactNode>>
+
+export interface AppMetricsUrlParams {
+    tab?: AppMetricsTab
+    from?: string
+    error?: [string, string]
+}
+
+export enum AppMetricsTab {
+    Logs = 'logs',
+    ProcessEvent = 'processEvent',
+    OnEvent = 'onEvent',
+    ComposeWebhook = 'composeWebhook',
+    ExportEvents = 'exportEvents',
+    ScheduledTask = 'scheduledTask',
+    HistoricalExports = 'historical_exports',
+    History = 'history',
+}
 
 export enum SidePanelTab {
     Notebooks = 'notebook',
