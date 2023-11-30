@@ -98,6 +98,8 @@ services:
             - '443:443/udp'
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile
+            - caddy_data:/data
+            - caddy_config:/config
         depends_on:
             - web
     object_storage:
@@ -155,6 +157,8 @@ services:
             SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
 
 volumes:
+    caddy_data:
+    caddy_config:
     zookeeper-data:
     zookeeper-datalog:
     zookeeper-logs:
