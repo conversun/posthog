@@ -432,6 +432,48 @@ describe('replay/transform', () => {
                     })
                 ).toMatchSnapshot()
             })
+
+            test('web_view with URL', () => {
+                expect(
+                    posthogEEModule.mobileReplay?.transformEventToWeb({
+                        type: 2,
+                        data: {
+                            wireframes: [
+                                {
+                                    id: 12365,
+                                    width: 100,
+                                    height: 30,
+                                    type: 'web_view',
+                                    url: 'https://example.com',
+                                },
+                            ],
+                        },
+                        timestamp: 1,
+                    })
+                ).toMatchSnapshot()
+            })
+
+            test('progress rating', () => {
+                expect(
+                    posthogEEModule.mobileReplay?.transformEventToWeb({
+                        type: 2,
+                        data: {
+                            wireframes: [
+                                {
+                                    id: 12365,
+                                    width: 100,
+                                    height: 30,
+                                    type: 'progress',
+                                    max: '12',
+                                    value: '6', // i.e 50%
+                                },
+                            ],
+                        },
+                        timestamp: 1,
+                    })
+                ).toMatchSnapshot()
+            })
+
             test('radio_group', () => {
                 expect(
                     posthogEEModule.mobileReplay?.transformEventToWeb({
@@ -741,7 +783,7 @@ describe('replay/transform', () => {
                     id: 12365,
                     width: 100,
                     height: 30,
-                    type: 'webview',
+                    type: 'web_view',
                 },
             ])('$type - $inputType - $value', (testCase) => {
                 expect(

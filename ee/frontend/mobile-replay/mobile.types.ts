@@ -201,7 +201,7 @@ export type wireframeProgress = wireframeInputBase & {
      */
     max?: number
     style?: MobileStyles & {
-        bar: 'horizontal' | 'circular'
+        bar: 'horizontal' | 'circular' | 'rating'
     }
 }
 
@@ -235,6 +235,7 @@ export type wireframeRectangle = wireframeBase & {
 
 export type wireframeWebView = wireframeBase & {
     type: 'web_view'
+    url?: string
 }
 
 export type wireframePlaceholder = wireframeBase & {

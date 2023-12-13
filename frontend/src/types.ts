@@ -702,6 +702,9 @@ export interface SessionPlayerSnapshotData {
     snapshots?: RecordingSnapshot[]
     sources?: SessionRecordingSnapshotSource[]
     blob_keys?: string[]
+    // used for a debug signal only for PostHog team, controlled by a feature flag
+    // DO NOT RELY ON THIS FOR NON DEBUG PURPOSES
+    untransformed_snapshots?: RecordingSnapshot[]
 }
 
 export interface SessionPlayerData {
@@ -2236,7 +2239,7 @@ export enum SurveyUrlMatchType {
 
 export enum SurveyType {
     Popover = 'popover',
-    Button = 'button',
+    Widget = 'widget',
     FullScreen = 'full_screen',
     Email = 'email',
     API = 'api',
@@ -2257,6 +2260,11 @@ export interface SurveyAppearance {
     thankYouMessageDescription?: string
     autoDisappear?: boolean
     position?: string
+    // widget only
+    widgetType?: 'button' | 'tab' | 'selector'
+    widgetSelector?: string
+    widgetLabel?: string
+    widgetColor?: string
 }
 
 export interface SurveyQuestionBase {
