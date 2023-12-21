@@ -164,4 +164,5 @@ volumes:
     zookeeper-logs:
     object_storage:
     postgres-data:
-    clickhouse-data:
+    root_clickhouse-data:
+        external: true
