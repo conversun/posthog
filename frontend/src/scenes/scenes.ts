@@ -202,20 +202,10 @@ export const sceneConfigurations: Record<Scene, SceneConfig> = {
         name: 'Data warehouse',
         defaultDocsPath: '/docs/feature-flags/creating-feature-flags',
     },
-    [Scene.DataWarehousePosthog]: {
-        projectBased: true,
-        name: 'Data warehouse',
-        defaultDocsPath: '/docs/data-warehouse',
-    },
     [Scene.DataWarehouseExternal]: {
         projectBased: true,
         name: 'Data warehouse',
         defaultDocsPath: '/docs/data-warehouse/setup',
-    },
-    [Scene.DataWarehouseSavedQueries]: {
-        projectBased: true,
-        name: 'Data warehouse',
-        defaultDocsPath: '/docs/data-warehouse/view',
     },
     [Scene.DataWarehouseSettings]: {
         projectBased: true,
@@ -355,10 +345,6 @@ export const sceneConfigurations: Record<Scene, SceneConfig> = {
         allowUnauthenticated: true,
         layout: 'plain',
     },
-    [Scene.Feedback]: {
-        projectBased: true,
-        name: 'Feedback',
-    },
     [Scene.Notebook]: {
         projectBased: true,
         hideProjectNotice: true, // Currently doesn't render well...
@@ -445,6 +431,7 @@ export const redirects: Record<
     '/project/settings': urls.settings('project'),
     '/organization/settings': urls.settings('organization'),
     '/me/settings': urls.settings('user'),
+    '/pipeline': urls.pipeline(),
 }
 
 export const routes: Record<string, Scene> = {
@@ -513,9 +500,6 @@ export const routes: Record<string, Scene> = {
     [urls.surveyTemplates()]: Scene.SurveyTemplates,
     [urls.dataWarehouse()]: Scene.DataWarehouse,
     [urls.dataWarehouseTable()]: Scene.DataWarehouseTable,
-    [urls.dataWarehousePosthog()]: Scene.DataWarehousePosthog,
-    [urls.dataWarehouseExternal()]: Scene.DataWarehouseExternal,
-    [urls.dataWarehouseSavedQueries()]: Scene.DataWarehouseSavedQueries,
     [urls.dataWarehouseSettings()]: Scene.DataWarehouseSettings,
     [urls.dataWarehouseRedirect(':kind')]: Scene.DataWarehouseRedirect,
     [urls.featureFlags()]: Scene.FeatureFlags,
@@ -563,8 +547,6 @@ export const routes: Record<string, Scene> = {
     [urls.unsubscribe()]: Scene.Unsubscribe,
     [urls.integrationsRedirect(':kind')]: Scene.IntegrationsRedirect,
     [urls.debugQuery()]: Scene.DebugQuery,
-    [urls.feedback()]: Scene.Feedback,
-    [urls.feedback() + '/*']: Scene.Feedback,
     [urls.notebook(':shortId')]: Scene.Notebook,
     [urls.notebooks()]: Scene.Notebooks,
     [urls.canvas()]: Scene.Canvas,
