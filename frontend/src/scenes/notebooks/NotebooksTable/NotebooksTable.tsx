@@ -65,21 +65,20 @@ export function NotebooksTable(): JSX.Element {
         >,
         {
             render: function Render(_, notebook) {
+                if (notebook.is_template) {
+                    return null
+                }
                 return (
                     <LemonMenu
                         items={[
                             {
-                                items: [
-                                    {
-                                        label: 'Delete',
-                                        icon: <IconDelete />,
-                                        status: 'danger',
+                                label: 'Delete',
+                                icon: <IconDelete />,
+                                status: 'danger',
 
-                                        onClick: () => {
-                                            notebooksModel.actions.deleteNotebook(notebook.short_id, notebook?.title)
-                                        },
-                                    },
-                                ],
+                                onClick: () => {
+                                    notebooksModel.actions.deleteNotebook(notebook.short_id, notebook?.title)
+                                },
                             },
                         ]}
                         actionable
@@ -114,7 +113,7 @@ export function NotebooksTable(): JSX.Element {
                         setFilters({ search: s })
                     }}
                     value={filters.search}
-                    data-attr={'notebooks-search'}
+                    data-attr="notebooks-search"
                 />
                 <div className="flex items-center gap-4 flex-wrap">
                     <ContainsTypeFilters filters={filters} setFilters={setFilters} />
@@ -135,7 +134,7 @@ export function NotebooksTable(): JSX.Element {
                 columns={columns}
                 loading={notebooksResponseLoading}
                 defaultSorting={{ columnKey: '-created_at', order: 1 }}
-                emptyState={`No notebooks matching your filters!`}
+                emptyState="No notebooks matching your filters!"
                 nouns={['notebook', 'notebooks']}
                 sorting={sortValue ? { columnKey: sortValue, order: sortValue.startsWith('-') ? -1 : 1 } : undefined}
                 onSort={(newSorting) =>

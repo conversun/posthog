@@ -45,7 +45,7 @@ export const trendsDataLogic = kea<trendsDataLogicType>([
                 'display',
                 'compare',
                 'interval',
-                'breakdown',
+                'breakdownFilter',
                 'showValueOnSeries',
                 'showLabelOnSeries',
                 'showPercentStackView',
@@ -61,7 +61,7 @@ export const trendsDataLogic = kea<trendsDataLogicType>([
                 'vizSpecificOptions',
             ],
         ],
-        actions: [insightVizDataLogic(props), ['setInsightData', 'updateInsightFilter', 'updateBreakdown']],
+        actions: [insightVizDataLogic(props), ['setInsightData', 'updateInsightFilter', 'updateBreakdownFilter']],
     })),
 
     actions({
@@ -153,8 +153,12 @@ export const trendsDataLogic = kea<trendsDataLogicType>([
                 if (results[0]?.days === undefined) {
                     return 0
                 }
-                const startDate = dayjs().startOf(interval ?? 'd')
-                const startIndex = results[0].days.findIndex((day: string) => dayjs(day) >= startDate)
+                const startDate = dayjs()
+                    .tz('utc', true)
+                    .startOf(interval ?? 'd')
+                const startIndex = results[0].days.findIndex((day: string) => {
+                    return dayjs(day).tz('utc', true) >= startDate
+                })
 
                 if (startIndex !== undefined && startIndex !== -1) {
                     return startIndex - results[0].days.length

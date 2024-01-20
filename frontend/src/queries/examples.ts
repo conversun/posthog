@@ -188,7 +188,7 @@ const InsightTrendsQuery: TrendsQuery = {
     trendsFilter: {
         display: ChartDisplayType.ActionsAreaGraph,
     },
-    breakdown: {
+    breakdownFilter: {
         breakdown: '$geoip_country_code',
         breakdown_type: 'event',
     },
@@ -206,7 +206,7 @@ const InsightFunnelsQuery: FunnelsQuery = {
     funnelsFilter: {
         funnel_order_type: StepOrderValue.ORDERED,
     },
-    breakdown: {
+    breakdownFilter: {
         breakdown: '$geoip_country_code',
         breakdown_type: 'event',
     },
@@ -218,8 +218,8 @@ const InsightRetentionQuery: RetentionQuery = {
     filterTestAccounts,
     retentionFilter: {
         // TODO: this should be typed as (EventsNode | ActionsNode)[] without math and properties
-        target_entity: { type: 'events', id: '$pageview', name: '$pageview' },
-        returning_entity: { type: 'events', id: '$pageview', name: '$pageview' },
+        targetEntity: { type: 'events', id: '$pageview', name: '$pageview' },
+        returningEntity: { type: 'events', id: '$pageview', name: '$pageview' },
     },
 }
 

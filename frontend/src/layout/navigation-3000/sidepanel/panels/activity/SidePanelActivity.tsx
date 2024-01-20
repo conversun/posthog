@@ -121,7 +121,6 @@ export const SidePanelActivity = (): JSX.Element => {
             <div className="flex flex-col overflow-hidden flex-1">
                 <div className="shrink-0 mx-2">
                     <LemonTabs
-                        inline
                         activeKey={activeTab as SidePanelActivityTab}
                         onChange={(key) => setActiveTab(key)}
                         tabs={[
@@ -138,14 +137,14 @@ export const SidePanelActivity = (): JSX.Element => {
                 </div>
 
                 {/* Controls */}
-                <div className="shrink-0 space-y-2 p-2">
+                <div className="shrink-0 space-y-2 px-2 pb-2">
                     {activeTab === SidePanelActivityTab.Unread ? (
                         <>
                             <LemonBanner type="info" dismissKey="notifications-introduction">
                                 Notifications shows you changes others make to{' '}
                                 <Link to={urls.savedInsights('history')}>Insights</Link> and{' '}
                                 <Link to={urls.featureFlags('history')}>Feature Flags</Link> that you created. Come join{' '}
-                                <Link to={'https://posthog.com/community'}>our community forum</Link> and tell us what
+                                <Link to="https://posthog.com/community">our community forum</Link> and tell us what
                                 else should be here!
                             </LemonBanner>
 

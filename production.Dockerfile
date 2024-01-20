@@ -26,6 +26,7 @@ WORKDIR /code
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 COPY package.json pnpm-lock.yaml ./
+COPY patches/ patches/
 RUN corepack enable && pnpm --version && \
     mkdir /tmp/pnpm-store && \
     pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store --prod && \
@@ -34,7 +35,7 @@ RUN corepack enable && pnpm --version && \
 COPY frontend/ frontend/
 COPY ee/frontend/ ee/frontend/
 COPY ./bin/ ./bin/
-COPY babel.config.js tsconfig.json webpack.config.js tailwind.config.js postcss.config.js ./
+COPY babel.config.js tsconfig.json webpack.config.js tailwind.config.js ./
 RUN pnpm build
 
 

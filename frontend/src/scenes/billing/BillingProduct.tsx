@@ -370,6 +370,20 @@ export const BillingProduct = ({ product }: { product: BillingProductV2Type }): 
                                     <More
                                         overlay={
                                             <>
+                                                {billing?.billing_period?.interval == 'month' && (
+                                                    <LemonButton
+                                                        fullWidth
+                                                        onClick={() => setIsEditingBillingLimit(true)}
+                                                    >
+                                                        Set billing limit
+                                                    </LemonButton>
+                                                )}
+                                                <LemonButton
+                                                    fullWidth
+                                                    to="https://posthog.com/docs/billing/estimating-usage-costs#how-to-reduce-your-posthog-costs"
+                                                >
+                                                    Learn how to reduce your bill
+                                                </LemonButton>
                                                 {product.plans?.length > 0 ? (
                                                     <LemonButton
                                                         fullWidth
@@ -388,27 +402,6 @@ export const BillingProduct = ({ product }: { product: BillingProductV2Type }): 
                                                         Contact support to unsubscribe
                                                     </LemonButton>
                                                 )}
-
-                                                <LemonButton
-                                                    fullWidth
-                                                    to="https://posthog.com/docs/billing/estimating-usage-costs#how-to-reduce-your-posthog-costs"
-                                                >
-                                                    Learn how to reduce your bill
-                                                </LemonButton>
-                                                {billing?.billing_period?.interval == 'month' && (
-                                                    <LemonButton
-                                                        fullWidth
-                                                        disabledReason={
-                                                            billing?.discount_percent === 100
-                                                                ? "You can't set a billing limit with a 100% discount"
-                                                                : null
-                                                        }
-                                                        tooltipPlacement="bottom"
-                                                        onClick={() => setIsEditingBillingLimit(true)}
-                                                    >
-                                                        Set billing limit
-                                                    </LemonButton>
-                                                )}
                                             </>
                                         }
                                     />
@@ -420,7 +413,7 @@ export const BillingProduct = ({ product }: { product: BillingProductV2Type }): 
                 </div>
                 <div className="px-8">
                     {product.percentage_usage > 1 ? (
-                        <LemonBanner type={'error'}>
+                        <LemonBanner type="error">
                             You have exceeded the {customLimitUsd ? 'billing limit' : 'free tier limit'} for this
                             product.
                         </LemonBanner>
@@ -628,11 +621,7 @@ export const BillingProduct = ({ product }: { product: BillingProductV2Type }): 
                                         {!billing?.has_active_subscription && (
                                             <div className="flex gap-x-2 items-center mb-2">
                                                 <IconCheckCircleOutline className="text-success" />
-                                                <Tooltip
-                                                    title={
-                                                        'Multiple projects, Feature flags, Experiments, Integrations, Apps, and more'
-                                                    }
-                                                >
+                                                <Tooltip title="Multiple projects, Feature flags, Experiments, Integrations, Apps, and more">
                                                     <b>Upgraded platform features</b>
                                                 </Tooltip>
                                             </div>

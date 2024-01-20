@@ -61,8 +61,10 @@ jobs:
                         # the dependencies more clear if we separated the backend/frontend
                         # code completely
                         # really we should ignore ee/frontend/** but dorny doesn't support that
+                        # - '!ee/frontend/**'
+                        # including the negated rule appears to work
+                        # but makes it always match because the checked file always isn't `ee/frontend/**` 🙈
                         - 'ee/**/*'
-                        - '!ee/frontend/**'
                         - 'posthog/**/*'
                         - 'bin/*.py'
                         - requirements.txt
@@ -132,6 +134,9 @@ jobs:
             - name: Check formatting
               run: |
                   ruff format --exclude posthog/hogql/grammar --check --diff .
+
+            - name: Add Problem Matcher
+              run: echo "::add-matcher::.github/mypy-problem-matcher.json"
 
             - name: Check static typing
               run: |

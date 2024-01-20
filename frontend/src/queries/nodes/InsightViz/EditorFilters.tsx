@@ -58,7 +58,7 @@ export function EditorFilters({ query, showing, embedded }: EditorFiltersProps):
         isLifecycle,
         isTrendsLike,
         display,
-        breakdown,
+        breakdownFilter,
         pathsFilter,
         querySource,
         shouldShowSessionAnalysisWarning,
@@ -76,7 +76,7 @@ export function EditorFilters({ query, showing, embedded }: EditorFiltersProps):
         isTrendsFunnel
     const hasPathsAdvanced = availableFeatures.includes(AvailableFeature.PATHS_ADVANCED)
     const hasAttribution = isStepsFunnel
-    const hasPathsHogQL = isPaths && pathsFilter?.include_event_types?.includes(PathType.HogQL)
+    const hasPathsHogQL = isPaths && pathsFilter?.includeEventTypes?.includes(PathType.HogQL)
 
     const editorFilters: InsightEditorFilterGroup[] = [
         {
@@ -173,7 +173,7 @@ export function EditorFilters({ query, showing, embedded }: EditorFiltersProps):
         },
         {
             title: 'Breakdown',
-            count: breakdown?.breakdowns?.length || (breakdown?.breakdown ? 1 : 0),
+            count: breakdownFilter?.breakdowns?.length || (breakdownFilter?.breakdown ? 1 : 0),
             editorFilters: filterFalsy([
                 hasBreakdown
                     ? {
