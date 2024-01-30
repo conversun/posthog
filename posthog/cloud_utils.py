@@ -34,7 +34,7 @@ def is_cloud():
             # TRICKY - The license table may not exist if a migration is running
             pass
         except Exception as e:
-            print("ERROR: Unable to check license", e)  # noqa: T201
+            print("ERROR: check license", e)  # noqa: T201
             capture_exception(e)
 
     return is_cloud_cached
