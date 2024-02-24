@@ -1,11 +1,11 @@
-import { IconCheck } from '@posthog/icons'
+import { IconCheck, IconGear, IconX } from '@posthog/icons'
 import { LemonSegmentedButton, Tooltip } from '@posthog/lemon-ui'
 import { useActions, useValues } from 'kea'
 import { ChildFunctionProps, Form } from 'kea-forms'
 import { CodeEditor } from 'lib/components/CodeEditors'
 import { DatePicker } from 'lib/components/DatePicker'
 import { dayjs } from 'lib/dayjs'
-import { IconClose, IconPlayCircle, IconSettings } from 'lib/lemon-ui/icons'
+import { IconPlayCircle } from 'lib/lemon-ui/icons'
 import { LemonButton } from 'lib/lemon-ui/LemonButton'
 import { LemonCalendarRangeInline } from 'lib/lemon-ui/LemonCalendarRange/LemonCalendarRangeInline'
 import { LemonField } from 'lib/lemon-ui/LemonField'
@@ -40,15 +40,17 @@ export function PluginJobConfiguration(props: InterfaceJobsProps): JSX.Element {
         <>
             <span className="ml-1" onClick={() => playButtonOnClick(jobHasEmptyPayload)}>
                 <Tooltip title={configureOrRunJobTooltip}>
-                    {jobHasEmptyPayload ? (
-                        <IconPlayCircle
-                            className={runJobAvailable ? 'Plugin__RunJobButton' : 'Plugin__RunJobButton--disabled'}
-                        />
-                    ) : (
-                        <IconSettings
-                            className={runJobAvailable ? 'Plugin__RunJobButton' : 'Plugin__RunJobButton--disabled'}
-                        />
-                    )}
+                    <span>
+                        {jobHasEmptyPayload ? (
+                            <IconPlayCircle
+                                className={runJobAvailable ? 'Plugin__RunJobButton' : 'Plugin__RunJobButton--disabled'}
+                            />
+                        ) : (
+                            <IconGear
+                                className={runJobAvailable ? 'Plugin__RunJobButton' : 'Plugin__RunJobButton--disabled'}
+                            />
+                        )}
+                    </span>
                 </Tooltip>
             </span>
 
@@ -133,7 +135,7 @@ function FieldInput({
                         {
                             value: false,
                             label: 'False',
-                            icon: <IconClose />,
+                            icon: <IconX />,
                         },
                     ]}
                 />
