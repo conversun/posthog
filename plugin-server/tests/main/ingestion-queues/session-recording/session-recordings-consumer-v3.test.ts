@@ -188,6 +188,14 @@ describe('ingester', () => {
         expect(ingester.sessions['1__session_id_2']).toBeDefined()
     })
 
+    it('handles parallel ingestion of the same session', async () => {
+        const event = createIncomingRecordingMessage()
+        const event2 = createIncomingRecordingMessage()
+        await Promise.all([ingester.consume(event), ingester.consume(event2)])
+        expect(Object.keys(ingester.sessions).length).toBe(1)
+        expect(ingester.sessions['1__session_id_1']).toBeDefined()
+    })
+
     it('destroys a session manager if finished', async () => {
         const sessionId = `destroys-a-session-manager-if-finished-${randomUUID()}`
         const event = createIncomingRecordingMessage({
@@ -202,6 +210,35 @@ describe('ingester', () => {
         await waitForExpect(() => {
             expect(ingester.sessions[`1__${sessionId}`]).not.toBeDefined()
         }, 10000)
+    })
+
+    describe('batch event processing', () => {
+        it('should batch parse incoming events and batch them to reduce writes', async () => {
+            mockConsumer.assignments.mockImplementation(() => [createTP(1)])
+            await ingester.handleEachBatch([
+                createMessage('session_id_1', 1),
+                createMessage('session_id_1', 1),
+                createMessage('session_id_1', 1),
+                createMessage('session_id_2', 1),
+            ])
+
+            expect(ingester.sessions[`${team.id}__session_id_1`].buffer?.context.count).toBe(1)
+            expect(ingester.sessions[`${team.id}__session_id_2`].buffer?.context.count).toBe(1)
+
+            let fileContents = await fs.readFile(
+                path.join(ingester.sessions[`${team.id}__session_id_1`].context.dir, 'buffer.jsonl'),
+                'utf-8'
+            )
+
+            expect(JSON.parse(fileContents).data).toHaveLength(3)
+
+            fileContents = await fs.readFile(
+                path.join(ingester.sessions[`${team.id}__session_id_2`].context.dir, 'buffer.jsonl'),
+                'utf-8'
+            )
+
+            expect(JSON.parse(fileContents).data).toHaveLength(1)
+        })
     })
 
     describe('simulated rebalancing', () => {

@@ -20,7 +20,7 @@ import { runInstrumentedFunction } from '../../utils'
 import { addSentryBreadcrumbsEventListeners } from '../kafka-metrics'
 import { BUCKETS_KB_WRITTEN, BUFFER_FILE_NAME, SessionManagerV3 } from './services/session-manager-v3'
 import { IncomingRecordingMessage } from './types'
-import { parseKafkaMessage } from './utils'
+import { parseKafkaMessage, reduceRecordingMessages } from './utils'
 
 // Must require as `tsc` strips unused `import` statements and just requiring this seems to init some globals
 require('@sentry/tracing')
@@ -163,7 +163,8 @@ export class SessionRecordingIngesterV3 {
         if (!this.sessions[key]) {
             const { partition } = event.metadata
 
-            this.sessions[key] = await SessionManagerV3.create(this.config, this.objectStorage.s3, {
+            // NOTE: It's important that this stays sync so that parallel calls will not create multiple session managers
+            this.sessions[key] = new SessionManagerV3(this.config, this.objectStorage.s3, {
                 teamId: team_id,
                 sessionId: session_id,
                 dir: this.dirForSession(partition, team_id, session_id),
@@ -192,7 +193,7 @@ export class SessionRecordingIngesterV3 {
                 histogramKafkaBatchSize.observe(messages.length)
                 histogramKafkaBatchSizeKb.observe(messages.reduce((acc, m) => (m.value?.length ?? 0) + acc, 0) / 1024)
 
-                const recordingMessages: IncomingRecordingMessage[] = []
+                let recordingMessages: IncomingRecordingMessage[] = []
 
                 await runInstrumentedFunction({
                     statsKey: `recordingingester.handleEachBatch.parseKafkaMessages`,
@@ -211,6 +212,8 @@ export class SessionRecordingIngesterV3 {
                                 recordingMessages.push(recordingMessage)
                             }
                         }
+
+                        recordingMessages = reduceRecordingMessages(recordingMessages)
                     },
                 })
 
@@ -226,8 +229,12 @@ export class SessionRecordingIngesterV3 {
                 await runInstrumentedFunction({
                     statsKey: `recordingingester.handleEachBatch.consumeBatch`,
                     func: async () => {
-                        for (const message of recordingMessages) {
-                            await this.consume(message)
+                        if (this.config.SESSION_RECORDING_PARALLEL_CONSUMPTION) {
+                            await Promise.all(recordingMessages.map((x) => this.consume(x)))
+                        } else {
+                            for (const message of recordingMessages) {
+                                await this.consume(message)
+                            }
                         }
                     },
                 })
@@ -235,6 +242,7 @@ export class SessionRecordingIngesterV3 {
                 await runInstrumentedFunction({
                     statsKey: `recordingingester.handleEachBatch.flushAllReadySessions`,
                     func: async () => {
+                        // TODO: This can time out if it ends up being overloaded - we should have a max limit here
                         await this.flushAllReadySessions()
                     },
                 })
@@ -296,6 +304,7 @@ export class SessionRecordingIngesterV3 {
             eachBatch: async (messages) => {
                 return await this.scheduleWork(this.handleEachBatch(messages))
             },
+            debug: this.config.SESSION_RECORDING_KAFKA_DEBUG,
         })
 
         addSentryBreadcrumbsEventListeners(this.batchConsumer.consumer)
@@ -387,23 +396,19 @@ export class SessionRecordingIngesterV3 {
                 })
 
                 // TODO: Below regex is a little crude. We should fix it
-                await Promise.all(
-                    keys
-                        .filter((x) => /\d+__[a-zA-Z0-9\-]+/.test(x))
-                        .map(async (key) => {
-                            // TODO: Ensure sessionId can only be a uuid
-                            const [teamId, sessionId] = key.split('__')
+                keys.filter((x) => /\d+__[a-zA-Z0-9\-]+/.test(x)).forEach((key) => {
+                    // TODO: Ensure sessionId can only be a uuid
+                    const [teamId, sessionId] = key.split('__')
 
-                            if (!this.sessions[key]) {
-                                this.sessions[key] = await SessionManagerV3.create(this.config, this.objectStorage.s3, {
-                                    teamId: parseInt(teamId),
-                                    sessionId,
-                                    dir: this.dirForSession(partition, parseInt(teamId), sessionId),
-                                    partition,
-                                })
-                            }
+                    if (!this.sessions[key]) {
+                        this.sessions[key] = new SessionManagerV3(this.config, this.objectStorage.s3, {
+                            teamId: parseInt(teamId),
+                            sessionId,
+                            dir: this.dirForSession(partition, parseInt(teamId), sessionId),
+                            partition,
                         })
-                )
+                    }
+                })
             })
         )
     }
@@ -416,43 +421,53 @@ export class SessionRecordingIngesterV3 {
     private setupHttpRoutes() {
         // Mimic the app sever's endpoint
         expressApp.get('/api/projects/:projectId/session_recordings/:sessionId/snapshots', async (req, res) => {
-            const startTime = Date.now()
-            res.on('finish', function () {
-                status.info('⚡️', `GET ${req.url} - ${res.statusCode} - ${Date.now() - startTime}ms`)
+            await runInstrumentedFunction({
+                statsKey: `recordingingester.http.getSnapshots`,
+                func: async () => {
+                    try {
+                        const startTime = Date.now()
+                        res.on('finish', function () {
+                            status.info('⚡️', `GET ${req.url} - ${res.statusCode} - ${Date.now() - startTime}ms`)
+                        })
+
+                        // validate that projectId is a number and sessionId is UUID like
+                        const projectId = parseInt(req.params.projectId)
+                        if (isNaN(projectId)) {
+                            res.sendStatus(404)
+                            return
+                        }
+
+                        const sessionId = req.params.sessionId
+                        if (!/^[0-9a-f-]+$/.test(sessionId)) {
+                            res.sendStatus(404)
+                            return
+                        }
+
+                        status.info('🔁', 'session-replay-ingestion - fetching session', { projectId, sessionId })
+
+                        // We don't know the partition upfront so we have to recursively check all partitions
+                        const partitions = await readdir(this.rootDir).catch(() => [])
+
+                        for (const partition of partitions) {
+                            const sessionDir = this.dirForSession(parseInt(partition), projectId, sessionId)
+                            const exists = await stat(sessionDir).catch(() => null)
+
+                            if (!exists) {
+                                continue
+                            }
+
+                            const fileStream = createReadStream(path.join(sessionDir, BUFFER_FILE_NAME))
+                            fileStream.pipe(res)
+                            return
+                        }
+
+                        res.sendStatus(404)
+                    } catch (e) {
+                        status.error('🔥', 'session-replay-ingestion - failed to fetch session', e)
+                        res.sendStatus(500)
+                    }
+                },
             })
-
-            // validate that projectId is a number and sessionId is UUID like
-            const projectId = parseInt(req.params.projectId)
-            if (isNaN(projectId)) {
-                res.sendStatus(404)
-                return
-            }
-
-            const sessionId = req.params.sessionId
-            if (!/^[0-9a-f-]+$/.test(sessionId)) {
-                res.sendStatus(404)
-                return
-            }
-
-            status.info('🔁', 'session-replay-ingestion - fetching session', { projectId, sessionId })
-
-            // We don't know the partition upfront so we have to recursively check all partitions
-            const partitions = await readdir(this.rootDir).catch(() => [])
-
-            for (const partition of partitions) {
-                const sessionDir = this.dirForSession(parseInt(partition), projectId, sessionId)
-                const exists = await stat(sessionDir).catch(() => null)
-
-                if (!exists) {
-                    continue
-                }
-
-                const fileStream = createReadStream(path.join(sessionDir, BUFFER_FILE_NAME))
-                fileStream.pipe(res)
-                return
-            }
-
-            res.sendStatus(404)
         })
     }
 }
