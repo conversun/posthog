@@ -79,6 +79,8 @@ services:
             SENTRY_DSN: 'https://public@sentry.example.com/1'
             SITE_URL: https://appview.cc
             SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
+            RECORDINGS_INGESTER_URL: http://plugins:6738
+
     plugins:
         extends:
             file: docker-compose.base.yml
