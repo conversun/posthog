@@ -119,7 +119,7 @@ envsubst > Caddyfile <<EOF
 {
 $TLS_BLOCK
 }
-$DOMAIN, http://, https:// {
+$DOMAIN {
 reverse_proxy http://web:8000
 }
 EOF
@@ -192,9 +192,9 @@ else
 fi
 
 # setup docker-compose
-echo "Setting up Docker Compose"
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.13.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || true
-sudo chmod +x /usr/local/bin/docker-compose
+# echo "Setting up Docker Compose"
+# sudo curl -L "https://github.com/docker/compose/releases/download/v2.13.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || true
+# sudo chmod +x /usr/local/bin/docker-compose
 
 # enable docker without sudo
 sudo usermod -aG docker "${USER}" || true

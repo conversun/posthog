@@ -48,11 +48,14 @@ services:
             - zookeeper-datalog:/datalog
             - zookeeper-data:/data
             - zookeeper-logs:/logs
+        environment:
+            ZOO_AUTOPURGE_PURGEINTERVAL: 24
     kafka:
         extends:
             file: docker-compose.base.yml
             service: kafka
-
+        environment:
+            KAFKA_CFG_LOG_RETENTION_HOURS: 48
     worker:
         extends:
             file: docker-compose.base.yml
@@ -71,6 +74,7 @@ services:
             - ./compose:/compose
         image: $REGISTRY_URL:$POSTHOG_APP_TAG
         environment:
+            TRUST_ALL_PROXIES: true
             SENTRY_DSN: $SENTRY_DSN
             SITE_URL: https://$DOMAIN
             SECRET_KEY: $POSTHOG_SECRET
@@ -87,13 +91,16 @@ services:
             SECRET_KEY: $POSTHOG_SECRET
 
     caddy:
-        image: caddy:2.6.1
+        image: caddy:2
         restart: unless-stopped
         ports:
             - '80:80'
             - '443:443'
+            - '443:443/udp'
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile
+            - caddy_data:/data
+            - caddy_config:/config
         depends_on:
             - web
     object_storage:
@@ -155,3 +162,5 @@ volumes:
     object_storage:
     postgres-data:
     clickhouse-data:
+    caddy_data:
+    caddy_config:
