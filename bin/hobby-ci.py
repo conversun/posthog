@@ -29,7 +29,7 @@ user_data = (
     "mkdir hobby \n"
     "cd hobby \n"
     "sed -i \"s/#\\$nrconf{restart} = 'i';/\\$nrconf{restart} = 'a';/g\" /etc/needrestart/needrestart.conf \n"
-    "git clone https://github.com/PostHog/posthog.git \n"
+    "git clone https://github.com/conversun/posthog.git \n"
     "cd posthog \n"
     f"git checkout {branch} \n"
     "cd .. \n"
