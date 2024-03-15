@@ -66,7 +66,7 @@ services:
         environment:
             SENTRY_DSN: 'https://public@sentry.example.com/1'
             SITE_URL: https://appview.cc
-            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
+            SECRET_KEY: 2ba97f68bb4bf917a5a5db4042991c8cf56247c08e892330002787dd
         image: posthog/posthog:latest
     web:
         extends:
@@ -80,7 +80,7 @@ services:
             TRUST_ALL_PROXIES: true
             SENTRY_DSN: 'https://public@sentry.example.com/1'
             SITE_URL: https://appview.cc
-            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
+            SECRET_KEY: 2ba97f68bb4bf917a5a5db4042991c8cf56247c08e892330002787dd
             RECORDINGS_INGESTER_URL: http://plugins:6738
         depends_on:
             - db
@@ -97,7 +97,7 @@ services:
         environment:
             SENTRY_DSN: 'https://public@sentry.example.com/1'
             SITE_URL: https://appview.cc
-            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
+            SECRET_KEY: 2ba97f68bb4bf917a5a5db4042991c8cf56247c08e892330002787dd
         depends_on:
             - db
             - redis
@@ -134,7 +134,7 @@ services:
         environment:
             SENTRY_DSN: 'https://public@sentry.example.com/1'
             SITE_URL: https://appview.cc
-            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
+            SECRET_KEY: 2ba97f68bb4bf917a5a5db4042991c8cf56247c08e892330002787dd
             SKIP_ASYNC_MIGRATIONS_SETUP: 0
 
     # Temporal containers
@@ -177,7 +177,7 @@ services:
             SENTRY_DSN: 'https://public@sentry.example.com/1'
             SITE_URL: https://appview.cc
             TEMPORAL_HOST: temporal
-            SECRET_KEY: 0dd9d73cc9edb91e9ea1463e4ea5e80549f5a29f9f17abc158bd4ecc2537c7ac
+            SECRET_KEY: 2ba97f68bb4bf917a5a5db4042991c8cf56247c08e892330002787dd
         depends_on:
             - db
             - redis
