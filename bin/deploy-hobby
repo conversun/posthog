@@ -110,7 +110,7 @@ fi
 
 if [ "$REGISTRY_URL" == "" ]
 then
-export REGISTRY_URL="posthog/posthog"
+export REGISTRY_URL="conversun/posthog"
 fi
 
 # rewrite caddyfile
