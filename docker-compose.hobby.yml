@@ -78,6 +78,7 @@ services:
         image: $REGISTRY_URL:$POSTHOG_APP_TAG
         environment:
             TRUST_ALL_PROXIES: true
+            IS_BEHIND_PROXY: true
             SENTRY_DSN: $SENTRY_DSN
             SITE_URL: https://$DOMAIN
             SECRET_KEY: $POSTHOG_SECRET
