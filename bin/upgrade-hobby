@@ -99,14 +99,14 @@ then
     echo ""
 fi
 
-read -r -p "Do you want to restart the PostHog stack now ? (docker-compose up) [y/N] " response
-if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]
-then
+# read -r -p "Do you want to restart the PostHog stack now ? (docker-compose up) [y/N] " response
+# if [[ "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]
+# then
     echo "OK, Restarting the stack!"
     sudo -E docker-compose up -d
-else
-    echo "OK, we are leaving the stack OFFLINE. Run 'sudo -E docker-compose up -d' when you are ready to start it."
-    exit
-fi
+# else
+#     echo "OK, we are leaving the stack OFFLINE. Run 'sudo -E docker-compose up -d' when you are ready to start it."
+#     exit
+# fi
 
 echo "PostHog upgraded successfully!"
