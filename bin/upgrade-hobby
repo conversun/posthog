@@ -109,4 +109,7 @@ fi
 #     exit
 # fi
 
+echo "Image Prune"
+docker image prune --force
+
 echo "PostHog upgraded successfully!"
