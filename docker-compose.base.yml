@@ -103,7 +103,6 @@ services:
             KAFKA_HOSTS: 'kafka:9092'
             REDIS_URL: 'redis://redis:6379/'
 
-
     plugins:
         command: ./bin/plugin-server --no-restart-loop
         restart: on-failure
@@ -154,8 +153,6 @@ services:
         volumes:
             - /var/lib/elasticsearch/data
     temporal:
-
-
         environment:
             - DB=postgresql
             - DB_PORT=5432
@@ -192,4 +189,3 @@ services:
         restart: on-failure
         # environment:
         #     TEMPORAL_HOST: temporal
-
