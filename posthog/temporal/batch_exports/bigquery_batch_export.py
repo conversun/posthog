@@ -15,7 +15,6 @@ from posthog.batch_exports.models import BatchExportRun
 from posthog.batch_exports.service import BatchExportField, BatchExportSchema, BigQueryBatchExportInputs
 from posthog.temporal.batch_exports.base import PostHogWorkflow
 from posthog.temporal.batch_exports.batch_exports import (
-    BatchExportTemporaryFile,
     CreateBatchExportRunInputs,
     UpdateBatchExportRunStatusInputs,
     create_export_run,
@@ -28,6 +27,9 @@ from posthog.temporal.batch_exports.batch_exports import (
 from posthog.temporal.batch_exports.metrics import (
     get_bytes_exported_metric,
     get_rows_exported_metric,
+)
+from posthog.temporal.batch_exports.temporary_file import (
+    BatchExportTemporaryFile,
 )
 from posthog.temporal.batch_exports.utils import peek_first_and_rewind
 from posthog.temporal.common.clickhouse import get_client
@@ -193,7 +195,7 @@ def bigquery_default_fields() -> list[BatchExportField]:
 
 
 @activity.defn
-async def insert_into_bigquery_activity(inputs: BigQueryInsertInputs):
+async def insert_into_bigquery_activity(inputs: BigQueryInsertInputs) -> int:
     """Activity streams data from ClickHouse to BigQuery."""
     logger = await bind_temporal_worker_logger(team_id=inputs.team_id, destination="BigQuery")
     logger.info(
@@ -230,7 +232,7 @@ async def insert_into_bigquery_activity(inputs: BigQueryInsertInputs):
                 inputs.data_interval_start,
                 inputs.data_interval_end,
             )
-            return
+            return 0
 
         logger.info("BatchExporting %s rows", count)
 
@@ -353,6 +355,8 @@ async def insert_into_bigquery_activity(inputs: BigQueryInsertInputs):
                     activity.heartbeat(last_inserted_at)
 
                     jsonl_file.reset()
+
+                return jsonl_file.records_total
 
 
 @workflow.defn(name="bigquery-export")

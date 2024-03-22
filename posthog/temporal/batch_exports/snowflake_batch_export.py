@@ -18,7 +18,6 @@ from posthog.batch_exports.models import BatchExportRun
 from posthog.batch_exports.service import BatchExportField, BatchExportSchema, SnowflakeBatchExportInputs
 from posthog.temporal.batch_exports.base import PostHogWorkflow
 from posthog.temporal.batch_exports.batch_exports import (
-    BatchExportTemporaryFile,
     CreateBatchExportRunInputs,
     UpdateBatchExportRunStatusInputs,
     create_export_run,
@@ -31,6 +30,9 @@ from posthog.temporal.batch_exports.batch_exports import (
 from posthog.temporal.batch_exports.metrics import (
     get_bytes_exported_metric,
     get_rows_exported_metric,
+)
+from posthog.temporal.batch_exports.temporary_file import (
+    BatchExportTemporaryFile,
 )
 from posthog.temporal.batch_exports.utils import peek_first_and_rewind
 from posthog.temporal.common.clickhouse import get_client
@@ -388,7 +390,7 @@ async def copy_loaded_files_to_snowflake_table(
 
 
 @activity.defn
-async def insert_into_snowflake_activity(inputs: SnowflakeInsertInputs):
+async def insert_into_snowflake_activity(inputs: SnowflakeInsertInputs) -> int:
     """Activity streams data from ClickHouse to Snowflake.
 
     TODO: We're using JSON here, it's not the most efficient way to do this.
@@ -430,7 +432,7 @@ async def insert_into_snowflake_activity(inputs: SnowflakeInsertInputs):
                 inputs.data_interval_start,
                 inputs.data_interval_end,
             )
-            return
+            return 0
 
         logger.info("BatchExporting %s rows", count)
 
@@ -552,6 +554,8 @@ async def insert_into_snowflake_activity(inputs: SnowflakeInsertInputs):
                     activity.heartbeat(str(last_inserted_at), file_no)
 
             await copy_loaded_files_to_snowflake_table(connection, inputs.table_name)
+
+        return local_results_file.records_total
 
 
 @workflow.defn(name="snowflake-export")

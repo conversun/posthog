@@ -13,7 +13,6 @@ from posthog.batch_exports.service import BatchExportField, BatchExportSchema, H
 from posthog.models import BatchExportRun
 from posthog.temporal.batch_exports.base import PostHogWorkflow
 from posthog.temporal.batch_exports.batch_exports import (
-    BatchExportTemporaryFile,
     CreateBatchExportRunInputs,
     UpdateBatchExportRunStatusInputs,
     create_export_run,
@@ -21,11 +20,14 @@ from posthog.temporal.batch_exports.batch_exports import (
     get_data_interval,
     get_rows_count,
     iter_records,
-    json_dumps_bytes,
 )
 from posthog.temporal.batch_exports.metrics import (
     get_bytes_exported_metric,
     get_rows_exported_metric,
+)
+from posthog.temporal.batch_exports.temporary_file import (
+    BatchExportTemporaryFile,
+    json_dumps_bytes,
 )
 from posthog.temporal.common.clickhouse import get_client
 from posthog.temporal.common.logger import bind_temporal_worker_logger
@@ -152,7 +154,7 @@ async def post_json_file_to_url(url, batch_file, session: aiohttp.ClientSession)
 
 
 @activity.defn
-async def insert_into_http_activity(inputs: HttpInsertInputs):
+async def insert_into_http_activity(inputs: HttpInsertInputs) -> int:
     """Activity streams data from ClickHouse to an HTTP Endpoint."""
     logger = await bind_temporal_worker_logger(team_id=inputs.team_id, destination="HTTP")
     logger.info(
@@ -180,7 +182,7 @@ async def insert_into_http_activity(inputs: HttpInsertInputs):
                 inputs.data_interval_start,
                 inputs.data_interval_end,
             )
-            return
+            return 0
 
         logger.info("BatchExporting %s rows", count)
 
@@ -302,6 +304,8 @@ async def insert_into_http_activity(inputs: HttpInsertInputs):
                 if batch_file.tell() > 0:
                     last_uploaded_timestamp = str(inserted_at)
                     await flush_batch_to_http_endpoint(last_uploaded_timestamp, session)
+
+            return batch_file.records_total
 
 
 @workflow.defn(name="http-export")
