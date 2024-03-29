@@ -4,6 +4,7 @@ import {
     Breakdown,
     BreakdownKeyType,
     BreakdownType,
+    ChartDisplayCategory,
     ChartDisplayType,
     CountPerActorMathType,
     EventPropertyFilter,
@@ -25,6 +26,8 @@ import {
     StickinessFilterType,
     TrendsFilterType,
 } from '~/types'
+
+export { ChartDisplayCategory }
 
 // Type alias for number to be reflected as integer in json-schema.
 /** @asType integer */
@@ -890,8 +893,8 @@ export type QueryStatus = {
     error: boolean
     /**  @default false */
     complete: boolean
-    /**  @default "" */
-    error_message: string
+    /**  @default null */
+    error_message: string | null
     results?: any
     /**  @format date-time */
     start_time?: string

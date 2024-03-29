@@ -501,14 +501,14 @@
         "ChartDisplayType": {
             "enum": [
                 "ActionsLineGraph",
-                "ActionsLineGraphCumulative",
-                "ActionsAreaGraph",
-                "ActionsTable",
-                "ActionsPie",
                 "ActionsBar",
+                "ActionsAreaGraph",
+                "ActionsLineGraphCumulative",
+                "BoldNumber",
+                "ActionsPie",
                 "ActionsBarValue",
-                "WorldMap",
-                "BoldNumber"
+                "ActionsTable",
+                "WorldMap"
             ],
             "type": "string"
         },
@@ -3460,9 +3460,6 @@
                 "operator": {
                     "$ref": "#/definitions/PropertyOperator"
                 },
-                "table": {
-                    "type": "string"
-                },
                 "type": {
                     "const": "person",
                     "description": "Person properties",
@@ -4472,8 +4469,8 @@
                     "type": "boolean"
                 },
                 "error_message": {
-                    "default": "",
-                    "type": "string"
+                    "default": null,
+                    "type": ["string", "null"]
                 },
                 "expiration_time": {
                     "format": "date-time",

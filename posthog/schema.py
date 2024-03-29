@@ -121,14 +121,14 @@ class ChartAxis(BaseModel):
 
 class ChartDisplayType(str, Enum):
     ActionsLineGraph = "ActionsLineGraph"
-    ActionsLineGraphCumulative = "ActionsLineGraphCumulative"
-    ActionsAreaGraph = "ActionsAreaGraph"
-    ActionsTable = "ActionsTable"
-    ActionsPie = "ActionsPie"
     ActionsBar = "ActionsBar"
-    ActionsBarValue = "ActionsBarValue"
-    WorldMap = "WorldMap"
+    ActionsAreaGraph = "ActionsAreaGraph"
+    ActionsLineGraphCumulative = "ActionsLineGraphCumulative"
     BoldNumber = "BoldNumber"
+    ActionsPie = "ActionsPie"
+    ActionsBarValue = "ActionsBarValue"
+    ActionsTable = "ActionsTable"
+    WorldMap = "WorldMap"
 
 
 class CohortPropertyFilter(BaseModel):
@@ -733,7 +733,7 @@ class QueryStatus(BaseModel):
     complete: Optional[bool] = False
     end_time: Optional[AwareDatetime] = None
     error: Optional[bool] = False
-    error_message: Optional[str] = ""
+    error_message: Optional[str] = None
     expiration_time: Optional[AwareDatetime] = None
     id: str
     query_async: Optional[bool] = True
@@ -1369,7 +1369,6 @@ class PersonPropertyFilter(BaseModel):
     key: str
     label: Optional[str] = None
     operator: PropertyOperator
-    table: Optional[str] = None
     type: Literal["person"] = Field(default="person", description="Person properties")
     value: Optional[Union[str, float, List[Union[str, float]]]] = None
 
