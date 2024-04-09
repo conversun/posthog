@@ -1,30 +1,19 @@
-import { Link } from '@posthog/lemon-ui'
+import { lemonToast, Link } from '@posthog/lemon-ui'
 import { actions, connect, kea, listeners, path, reducers, selectors } from 'kea'
+import { router } from 'kea-router'
+import api from 'lib/api'
 import { preflightLogic } from 'scenes/PreflightCheck/preflightLogic'
+import { Scene } from 'scenes/sceneTypes'
+import { urls } from 'scenes/urls'
 
-import { ExternalDataPostgresSchema, ExternalDataSourceType } from '~/types'
+import { Breadcrumb, ExternalDataSourceCreatePayload, ExternalDataSourceSyncSchema, SourceConfig } from '~/types'
 
-import { dataWarehouseTableLogic } from '../new_table/dataWarehouseTableLogic'
+import { sourceFormLogic } from '../external/forms/sourceFormLogic'
 import { dataWarehouseSettingsLogic } from '../settings/dataWarehouseSettingsLogic'
-import { dataWarehouseSceneLogic } from './dataWarehouseSceneLogic'
-import { sourceFormLogic } from './forms/sourceFormLogic'
-import type { sourceModalLogicType } from './sourceModalLogicType'
+import { dataWarehouseTableLogic } from './dataWarehouseTableLogic'
+import type { sourceWizardLogicType } from './sourceWizardLogicType'
 
 export const getHubspotRedirectUri = (): string => `${window.location.origin}/data-warehouse/hubspot/redirect`
-
-export interface SourceConfig {
-    name: ExternalDataSourceType
-    caption: string | React.ReactNode
-    fields: FieldConfig[]
-    disabledReason?: string | null
-}
-interface FieldConfig {
-    name: string
-    label: string
-    type: string
-    required: boolean
-    placeholder: string
-}
 
 export const SOURCE_DETAILS: Record<string, SourceConfig> = {
     Stripe: {
@@ -153,8 +142,8 @@ export const SOURCE_DETAILS: Record<string, SourceConfig> = {
     },
 }
 
-export const sourceModalLogic = kea<sourceModalLogicType>([
-    path(['scenes', 'data-warehouse', 'external', 'sourceModalLogic']),
+export const sourceWizardLogic = kea<sourceWizardLogicType>([
+    path(['scenes', 'data-warehouse', 'external', 'sourceWizardLogic']),
     actions({
         selectConnector: (connector: SourceConfig | null) => ({ connector }),
         toggleManualLinkFormVisible: (visible: boolean) => ({ visible }),
@@ -163,8 +152,14 @@ export const sourceModalLogic = kea<sourceModalLogicType>([
         onBack: true,
         onNext: true,
         onSubmit: true,
-        setDatabaseSchemas: (schemas: ExternalDataPostgresSchema[]) => ({ schemas }),
-        selectSchema: (schema: ExternalDataPostgresSchema) => ({ schema }),
+        setDatabaseSchemas: (schemas: ExternalDataSourceSyncSchema[]) => ({ schemas }),
+        selectSchema: (schema: ExternalDataSourceSyncSchema) => ({ schema }),
+        clearSource: true,
+        updateSource: (source: Partial<ExternalDataSourceCreatePayload>) => ({ source }),
+        createSource: true,
+        setIsLoading: (isLoading: boolean) => ({ isLoading }),
+        setSourceId: (id: string) => ({ sourceId: id }),
+        closeWizard: true,
     }),
     connect({
         values: [
@@ -175,14 +170,7 @@ export const sourceModalLogic = kea<sourceModalLogicType>([
             preflightLogic,
             ['preflight'],
         ],
-        actions: [
-            dataWarehouseSceneLogic,
-            ['toggleSourceModal'],
-            dataWarehouseTableLogic,
-            ['resetTable'],
-            dataWarehouseSettingsLogic,
-            ['loadSources'],
-        ],
+        actions: [dataWarehouseTableLogic, ['resetTable'], dataWarehouseSettingsLogic, ['loadSources']],
     }),
     reducers({
         selectedConnector: [
@@ -206,7 +194,7 @@ export const sourceModalLogic = kea<sourceModalLogicType>([
             },
         ],
         databaseSchema: [
-            [] as ExternalDataPostgresSchema[],
+            [] as ExternalDataSourceSyncSchema[],
             {
                 setDatabaseSchemas: (_, { schemas }) => schemas,
                 selectSchema: (state, { schema }) => {
@@ -218,8 +206,88 @@ export const sourceModalLogic = kea<sourceModalLogicType>([
                 },
             },
         ],
+        source: [
+            { payload: {}, prefix: '' } as {
+                prefix: string
+                payload: Record<string, any>
+            },
+            {
+                updateSource: (state, { source }) => {
+                    return {
+                        prefix: source.prefix ?? state.prefix,
+                        payload: {
+                            ...(state.payload ?? {}),
+                            ...(source.payload ?? {}),
+                        },
+                    }
+                },
+                clearSource: () => ({ payload: {}, prefix: '' }),
+            },
+        ],
+        isLoading: [
+            false as boolean,
+            {
+                onNext: () => false,
+                setIsLoading: (_, { isLoading }) => isLoading,
+            },
+        ],
+        sourceId: [
+            null as string | null,
+            {
+                setSourceId: (_, { sourceId }) => sourceId,
+            },
+        ],
     }),
     selectors({
+        canGoBack: [
+            (s) => [s.currentStep],
+            (currentStep): boolean => {
+                return currentStep !== 4
+            },
+        ],
+        canGoNext: [
+            (s) => [s.currentStep, s.dataWarehouseSources, s.sourceId],
+            (currentStep, allSources, sourceId): boolean => {
+                const source = allSources?.results.find((n) => n.id === sourceId)
+
+                if (currentStep === 4) {
+                    return source !== undefined && source.status === 'Completed'
+                }
+
+                return true
+            },
+        ],
+        showSkipButton: [
+            (s) => [s.currentStep],
+            (currentStep): boolean => {
+                return currentStep === 4
+            },
+        ],
+        nextButtonText: [
+            (s) => [s.currentStep],
+            (currentStep): string => {
+                if (currentStep === 3) {
+                    return 'Import'
+                }
+
+                if (currentStep === 4) {
+                    return 'Finish'
+                }
+
+                return 'Next'
+            },
+        ],
+        breadcrumbs: [
+            () => [],
+            (): Breadcrumb[] => [
+                {
+                    key: Scene.DataWarehouse,
+                    name: 'Data Warehouse',
+                    path: urls.dataWarehouse(),
+                },
+                { key: [Scene.DataWarehouse, 'New'], name: 'New' },
+            ],
+        ],
         showFooter: [
             (s) => [s.selectedConnector, s.isManualLinkFormVisible],
             (selectedConnector, isManualLinkFormVisible) => selectedConnector || isManualLinkFormVisible,
@@ -278,14 +346,22 @@ export const sourceModalLogic = kea<sourceModalLogicType>([
                     return 'Select tables to import'
                 }
 
+                if (currentStep === 4) {
+                    return 'Importing your data...'
+                }
+
                 return ''
             },
         ],
         modalCaption: [
             (s) => [s.selectedConnector, s.currentStep],
             (selectedConnector, currentStep) => {
-                if (currentStep == 2 && selectedConnector) {
+                if (currentStep === 2 && selectedConnector) {
                     return SOURCE_DETAILS[selectedConnector.name]?.caption
+                }
+
+                if (currentStep === 4) {
+                    return "Sit tight as we import your data! After it's done, we'll show you a few examples to help you make the most of using the data within PostHog."
                 }
 
                 return ''
@@ -295,8 +371,10 @@ export const sourceModalLogic = kea<sourceModalLogicType>([
     listeners(({ actions, values }) => ({
         onClear: () => {
             actions.selectConnector(null)
+            actions.clearSource()
             actions.toggleManualLinkFormVisible(false)
             actions.resetTable()
+            actions.setIsLoading(false)
         },
         onSubmit: () => {
             // Shared function that triggers different actions depending on the current step
@@ -306,24 +384,53 @@ export const sourceModalLogic = kea<sourceModalLogicType>([
             }
 
             if (values.currentStep === 2) {
-                if (values.selectedConnector?.name === 'Postgres') {
-                    sourceFormLogic({ sourceType: 'Postgres' }).actions.submitDatabaseSchemaForm()
-                } else if (values.selectedConnector?.name) {
-                    sourceFormLogic({ sourceType: values.selectedConnector?.name }).actions.submitExternalDataSource()
+                if (values.selectedConnector?.name) {
+                    const logic = sourceFormLogic({ sourceConfig: values.selectedConnector })
+                    logic.actions.submitSourceConnectionDetails()
                 } else {
+                    // Used for manual S3 file links
                     dataWarehouseTableLogic.actions.submitTable()
                 }
             }
 
-            if (values.currentStep === 3) {
-                const logic = sourceFormLogic({ sourceType: 'Postgres' })
-
-                logic.actions.setExternalDataSourceValue('payload', {
-                    ...logic.values.databaseSchemaForm.payload,
-                    schemas: values.databaseSchema.filter((schema) => schema.should_sync).map((schema) => schema.table),
+            if (values.currentStep === 3 && values.selectedConnector?.name) {
+                actions.updateSource({
+                    payload: {
+                        schemas: values.databaseSchema
+                            .filter((schema) => schema.should_sync)
+                            .map((schema) => schema.table),
+                    },
                 })
-                logic.actions.setExternalDataSourceValue('prefix', logic.values.databaseSchemaForm.prefix)
-                logic.actions.submitExternalDataSource()
+                actions.setIsLoading(true)
+                actions.createSource()
+            }
+
+            if (values.currentStep === 4) {
+                actions.closeWizard()
+            }
+        },
+        closeWizard: () => {
+            actions.clearSource()
+            actions.loadSources(null)
+            router.actions.push(urls.dataWarehouseSettings())
+        },
+        createSource: async () => {
+            if (values.selectedConnector === null) {
+                // This should never happen
+                return
+            }
+            try {
+                const { id } = await api.externalDataSources.create({
+                    ...values.source,
+                    source_type: values.selectedConnector.name,
+                })
+                lemonToast.success('New Data Resource Created')
+                actions.setSourceId(id)
+                actions.onNext()
+            } catch (e: any) {
+                lemonToast.error(e.data?.message ?? e.message)
+            } finally {
+                actions.setIsLoading(false)
             }
         },
     })),

@@ -1,5 +1,5 @@
 import { lemonToast } from '@posthog/lemon-ui'
-import { actions, connect, kea, listeners, path, props, reducers, selectors } from 'kea'
+import { actions, connect, kea, listeners, path, props, reducers } from 'kea'
 import { forms } from 'kea-forms'
 import { loaders } from 'kea-loaders'
 import { router } from 'kea-router'
@@ -8,7 +8,7 @@ import { databaseTableListLogic } from 'scenes/data-management/database/database
 import { urls } from 'scenes/urls'
 
 import { DataTableNode } from '~/queries/schema'
-import { AnyPropertyFilter, Breadcrumb, DataWarehouseTable } from '~/types'
+import { AnyPropertyFilter, DataWarehouseTable } from '~/types'
 
 import { dataWarehouseSceneLogic } from '../external/dataWarehouseSceneLogic'
 import type { dataWarehouseTableLogicType } from './dataWarehouseTableLogicType'
@@ -34,12 +34,7 @@ export const dataWarehouseTableLogic = kea<dataWarehouseTableLogicType>([
     path(['scenes', 'data-warehouse', 'tableLogic']),
     props({} as TableLogicProps),
     connect(() => ({
-        actions: [
-            databaseTableListLogic,
-            ['loadDatabase'],
-            dataWarehouseSceneLogic,
-            ['loadDataWarehouse', 'toggleSourceModal'],
-        ],
+        actions: [databaseTableListLogic, ['loadDatabase'], dataWarehouseSceneLogic, ['loadDataWarehouse']],
     })),
     actions({
         editingTable: (editing: boolean) => ({ editing }),
@@ -74,7 +69,6 @@ export const dataWarehouseTableLogic = kea<dataWarehouseTableLogicType>([
             lemonToast.success(<>Table {table.name} created</>)
             actions.loadDatabase()
             actions.loadDataWarehouse()
-            actions.toggleSourceModal(false)
             router.actions.replace(urls.dataWarehouse())
         },
         updateTableSuccess: async ({ table }) => {
@@ -95,17 +89,6 @@ export const dataWarehouseTableLogic = kea<dataWarehouseTableLogicType>([
             {
                 setDataTableQuery: (_, { query }) => query,
             },
-        ],
-    }),
-    selectors({
-        breadcrumbs: [
-            () => [],
-            (): Breadcrumb[] => [
-                {
-                    key: 'new',
-                    name: 'New',
-                },
-            ],
         ],
     }),
     forms(({ actions, props }) => ({
