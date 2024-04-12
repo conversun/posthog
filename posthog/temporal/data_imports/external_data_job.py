@@ -30,9 +30,11 @@ from posthog.warehouse.models import (
 )
 from posthog.warehouse.models.external_data_schema import get_postgres_schemas
 from posthog.temporal.common.logger import bind_temporal_worker_logger
-from typing import Tuple
+from posthog.utils import get_instance_region
+from typing import Dict, Tuple
 import asyncio
 from django.conf import settings
+from django.utils import timezone
 
 
 @dataclasses.dataclass
@@ -115,6 +117,7 @@ class ValidateSchemaInputs:
     team_id: int
     schemas: list[Tuple[str, str]]
     table_schema: TSchemaTables
+    table_row_counts: Dict[str, int]
 
 
 @activity.defn
@@ -124,6 +127,7 @@ async def validate_schema_activity(inputs: ValidateSchemaInputs) -> None:
         team_id=inputs.team_id,
         schemas=inputs.schemas,
         table_schema=inputs.table_schema,
+        table_row_counts=inputs.table_row_counts,
     )
 
     logger = await bind_temporal_worker_logger(team_id=inputs.team_id)
@@ -158,7 +162,7 @@ class ExternalDataJobInputs:
 
 
 @activity.defn
-async def run_external_data_job(inputs: ExternalDataJobInputs) -> TSchemaTables:
+async def run_external_data_job(inputs: ExternalDataJobInputs) -> Tuple[TSchemaTables, Dict[str, int]]:  # noqa: F821
     model: ExternalDataJob = await get_external_data_job(
         job_id=inputs.run_id,
     )
@@ -186,12 +190,25 @@ async def run_external_data_job(inputs: ExternalDataJobInputs) -> TSchemaTables:
         # until we require re update of account_ids in stripe so they're all store
         if not stripe_secret_key:
             raise ValueError(f"Stripe secret key not found for job {model.id}")
+
+        # Hacky just for specific user
+        region = get_instance_region()
+        if region == "EU" and inputs.team_id == 11870:
+            prev_day = timezone.now() - dt.timedelta(days=1)
+            start_date = prev_day.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + dt.timedelta(1)
+        else:
+            start_date = None
+            end_date = None
+
         source = stripe_source(
             api_key=stripe_secret_key,
             account_id=account_id,
             endpoints=tuple(endpoints),
             team_id=inputs.team_id,
             job_id=inputs.run_id,
+            start_date=start_date,
+            end_date=end_date,
         )
     elif model.pipeline.source_type == ExternalDataSource.Type.HUBSPOT:
         from posthog.temporal.data_imports.pipelines.hubspot.auth import refresh_access_token
@@ -256,13 +273,15 @@ async def run_external_data_job(inputs: ExternalDataJobInputs) -> TSchemaTables:
     heartbeat_task = asyncio.create_task(heartbeat())
 
     try:
-        total_rows_synced = await DataImportPipeline(job_inputs, source, logger).run()
+        table_row_counts = await DataImportPipeline(job_inputs, source, logger).run()
+        total_rows_synced = sum(table_row_counts.values())
+
         await aupdate_job_count(inputs.run_id, inputs.team_id, total_rows_synced)
     finally:
         heartbeat_task.cancel()
         await asyncio.wait([heartbeat_task])
 
-    return source.schema.tables
+    return source.schema.tables, table_row_counts
 
 
 # TODO: update retry policies
@@ -307,7 +326,7 @@ class ExternalDataJobWorkflow(PostHogWorkflow):
                 schemas=schemas,
             )
 
-            table_schemas = await workflow.execute_activity(
+            table_schemas, table_row_counts = await workflow.execute_activity(
                 run_external_data_job,
                 job_inputs,
                 start_to_close_timeout=dt.timedelta(hours=30),
@@ -317,7 +336,11 @@ class ExternalDataJobWorkflow(PostHogWorkflow):
 
             # check schema first
             validate_inputs = ValidateSchemaInputs(
-                run_id=run_id, team_id=inputs.team_id, schemas=schemas, table_schema=table_schemas
+                run_id=run_id,
+                team_id=inputs.team_id,
+                schemas=schemas,
+                table_schema=table_schemas,
+                table_row_counts=table_row_counts,
             )
 
             await workflow.execute_activity(
