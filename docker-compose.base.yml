@@ -171,11 +171,11 @@ services:
             kompose.volume.type: configMap
         volumes:
             - ./docker/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
-        # depends_on:
-        #     db:
-        #         condition: service_healthy
-        #     elasticsearch:
-        #         condition: service_started
+        depends_on:
+            db:
+                condition: service_healthy
+            elasticsearch:
+                condition: service_started
 
     temporal-admin-tools:
         environment:
