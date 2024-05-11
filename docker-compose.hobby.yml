@@ -87,7 +87,7 @@ services:
             - redis
             - clickhouse
             - kafka
-            - object_storage
+            - objectstorage
 
     plugins:
         extends:
@@ -103,7 +103,7 @@ services:
             - redis
             - clickhouse
             - kafka
-            - object_storage
+            - objectstorage
 
     caddy:
         image: caddy:2
@@ -118,13 +118,13 @@ services:
             - caddy_config:/config
         depends_on:
             - web
-    object_storage:
+    objectstorage:
         extends:
             file: docker-compose.base.yml
-            service: object_storage
+            service: objectstorage
         restart: on-failure
         volumes:
-            - object_storage:/data
+            - objectstorage:/data
 
     asyncmigrationscheck:
         extends:
@@ -185,14 +185,14 @@ services:
             - redis
             - clickhouse
             - kafka
-            - object_storage
+            - objectstorage
             - temporal
 
 volumes:
     zookeeper-data:
     zookeeper-datalog:
     zookeeper-logs:
-    object_storage:
+    objectstorage:
     postgres-data:
     clickhouse-data:
     caddy_data:
