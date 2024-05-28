@@ -116,8 +116,8 @@ services:
             - '443:443/udp'
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile
-            - caddy_data:/data
-            - caddy_config:/config
+            - caddy-data:/data
+            - caddy-config:/config
         depends_on:
             - web
     objectstorage:
@@ -200,5 +200,5 @@ volumes:
     objectstorage:
     postgres-data:
     clickhouse-data:
-    caddy_data:
-    caddy_config:
+    caddy-data:
+    caddy-config:

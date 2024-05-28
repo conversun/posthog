@@ -17,6 +17,7 @@ import {
     PropertyOperator,
     RecordingDurationFilter,
     RecordingFilters,
+    ReplayTabs,
     SessionRecordingId,
     SessionRecordingsResponse,
     SessionRecordingType,
@@ -117,6 +118,7 @@ export interface SessionRecordingPlaylistLogicProps {
     onFiltersChange?: (filters: RecordingFilters) => void
     pinnedRecordings?: (SessionRecordingType | string)[]
     onPinnedChange?: (recording: SessionRecordingType, pinned: boolean) => void
+    currentTab?: ReplayTabs
 }
 
 export interface SessionSummaryResponse {
@@ -220,7 +222,7 @@ export const sessionRecordingsPlaylistLogic = kea<sessionRecordingsPlaylistLogic
                         hog_ql_filtering: values.useHogQLFiltering,
                     }
 
-                    if (values.artificialLag) {
+                    if (values.artificialLag && !params.date_to) {
                         // values.artificalLag is a number of seconds to delay the recordings by
                         // convert it to an absolute UTC timestamp as the relative date parsing in the backend
                         // can't cope with seconds as a relative date
@@ -561,11 +563,7 @@ export const sessionRecordingsPlaylistLogic = kea<sessionRecordingsPlaylistLogic
         activeSessionRecordingId: [
             (s) => [s.selectedRecordingId, s.recordings, (_, props) => props.autoPlay],
             (selectedRecordingId, recordings, autoPlay): SessionRecordingId | undefined => {
-                return selectedRecordingId
-                    ? recordings.find((rec) => rec.id === selectedRecordingId)?.id || selectedRecordingId
-                    : autoPlay
-                    ? recordings[0]?.id
-                    : undefined
+                return selectedRecordingId ? selectedRecordingId : autoPlay ? recordings[0]?.id : undefined
             },
         ],
 
