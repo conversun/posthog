@@ -2,8 +2,6 @@ import { IconInfo, IconOpenSidebar } from '@posthog/icons'
 import { LemonButton, Link, Tooltip } from '@posthog/lemon-ui'
 import clsx from 'clsx'
 import { useActions, useValues } from 'kea'
-import { FEATURE_FLAGS } from 'lib/constants'
-import { featureFlagLogic } from 'lib/logic/featureFlagLogic'
 import posthog from 'posthog-js'
 import { useEffect } from 'react'
 import { billingLogic } from 'scenes/billing/billingLogic'
@@ -13,8 +11,7 @@ import { getProductIcon } from 'scenes/products/Products'
 import { AvailableFeature, BillingProductV2AddonType, BillingProductV2Type, BillingV2FeatureType } from '~/types'
 
 import { upgradeModalLogic } from '../UpgradeModal/upgradeModalLogic'
-import { PayGateMiniButton } from './PayGateMiniButton'
-import { PayGateMiniButtonVariant } from './PayGateMiniButtonVariant'
+import { PayGateButton } from './PayGateButton'
 import { payGateMiniLogic } from './payGateMiniLogic'
 
 export interface PayGateMiniProps {
@@ -56,7 +53,6 @@ export function PayGateMini({
     } = useValues(payGateMiniLogic({ featureKey: feature, currentUsage }))
     const { preflight, isCloudOrDev } = useValues(preflightLogic)
     const { billing, billingLoading } = useValues(billingLogic)
-    const { featureFlags } = useValues(featureFlagLogic)
     const { hideUpgradeModal } = useActions(upgradeModalLogic)
 
     const scrollToProduct = !(featureInfo?.key === AvailableFeature.ORGANIZATIONS_PROJECTS && !isAddonProduct)
@@ -103,23 +99,14 @@ export function PayGateMini({
                 handleCtaClick={handleCtaClick}
             >
                 <div className="flex items-center justify-center space-x-3">
-                    {/* we don't support plan comparisons for addons yet, so we'll use the variant that just sends them to the billing page */}
-                    {featureFlags[FEATURE_FLAGS.SUBSCRIBE_FROM_PAYGATE] === 'test' && !isAddonProduct ? (
-                        <PayGateMiniButton
-                            product={productWithFeature}
-                            featureInfo={featureInfo}
-                            gateVariant={gateVariant}
-                        />
-                    ) : (
-                        <PayGateMiniButtonVariant
-                            gateVariant={gateVariant}
-                            productWithFeature={productWithFeature}
-                            featureInfo={featureInfo}
-                            onCtaClick={handleCtaClick}
-                            billing={billing}
-                            scrollToProduct={scrollToProduct}
-                        />
-                    )}
+                    <PayGateButton
+                        gateVariant={gateVariant}
+                        productWithFeature={productWithFeature}
+                        featureInfo={featureInfo}
+                        onCtaClick={handleCtaClick}
+                        billing={billing}
+                        scrollToProduct={scrollToProduct}
+                    />
                     {docsLink && isCloudOrDev && (
                         <LemonButton
                             type="secondary"
@@ -170,7 +157,7 @@ function PayGateContent({
         <div
             className={clsx(
                 className,
-                background && 'bg-side border border-border',
+                background && 'bg-bg-3000 border border-border',
                 'PayGateMini rounded flex flex-col items-center p-4 text-center'
             )}
         >
@@ -216,7 +203,7 @@ const renderUsageLimitMessage = (
                     </Tooltip>
                     .
                 </p>
-                <p className="border border-border bg-side rounded p-4">
+                <p className="border border-border bg-bg-3000 rounded p-4">
                     <b>Your current plan limit:</b>{' '}
                     <span>
                         {featureAvailableOnOrg.limit} {featureAvailableOnOrg.unit}
@@ -275,7 +262,7 @@ const renderGateVariantMessage = (
 
 const GrandfatheredMessage = (): JSX.Element => {
     return (
-        <div className="flex gap-x-2 bg-side p-4 rounded text-left mb-4">
+        <div className="flex gap-x-2 bg-bg-3000 p-4 rounded text-left mb-4">
             <IconInfo className="text-muted text-2xl" />
             <p className="text-muted mb-0">
                 Your plan does not include this feature, but previously set settings may remain. Please upgrade your

@@ -1,11 +1,12 @@
 import structlog
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import QuerySet
+
 from rest_framework import serializers, viewsets
 from rest_framework.serializers import BaseSerializer
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-
 
 from posthog.api.forbid_destroy_model import ForbidDestroyModel
 from posthog.api.hog_function_template import HogFunctionTemplateSerializer
@@ -17,6 +18,7 @@ from posthog.cdp.services.icons import CDPIconsService
 from posthog.cdp.validation import compile_hog, validate_inputs, validate_inputs_schema
 from posthog.models.hog_functions.hog_function import HogFunction
 from posthog.permissions import PostHogFeatureFlagPermission
+from posthog.plugins.plugin_server_api import create_hog_invocation_test
 
 
 logger = structlog.get_logger(__name__)
@@ -55,6 +57,7 @@ class HogFunctionSerializer(HogFunctionMinimalSerializer):
             "created_by",
             "updated_at",
             "enabled",
+            "deleted",
             "hog",
             "bytecode",
             "inputs_schema",
@@ -74,6 +77,7 @@ class HogFunctionSerializer(HogFunctionMinimalSerializer):
         ]
         extra_kwargs = {
             "template_id": {"write_only": True},
+            "deleted": {"write_only": True},
         }
 
     def validate_inputs_schema(self, value):
@@ -82,10 +86,17 @@ class HogFunctionSerializer(HogFunctionMinimalSerializer):
     def validate(self, attrs):
         team = self.context["get_team"]()
         attrs["team"] = team
-        attrs["inputs_schema"] = attrs.get("inputs_schema", [])
-        attrs["filters"] = attrs.get("filters", {})
-        attrs["inputs"] = validate_inputs(attrs["inputs_schema"], attrs.get("inputs", {}))
-        attrs["bytecode"] = compile_hog(attrs["hog"])
+
+        if self.context["view"].action == "create":
+            # Ensure we have sensible defaults when created
+            attrs["filters"] = attrs.get("filters", {})
+            attrs["inputs_schema"] = attrs.get("inputs_schema", [])
+            attrs["inputs"] = attrs.get("inputs", {})
+
+        if "inputs" in attrs:
+            attrs["inputs"] = validate_inputs(attrs["inputs_schema"], attrs["inputs"])
+        if "hog" in attrs:
+            attrs["bytecode"] = compile_hog(attrs["hog"])
 
         return attrs
 
@@ -93,6 +104,14 @@ class HogFunctionSerializer(HogFunctionMinimalSerializer):
         request = self.context["request"]
         validated_data["created_by"] = request.user
         return super().create(validated_data=validated_data)
+
+
+class HogFunctionInvocationSerializer(serializers.Serializer):
+    configuration = HogFunctionSerializer(write_only=True)
+    event = serializers.DictField(write_only=True)
+    mock_async_functions = serializers.BooleanField(default=True, write_only=True)
+    status = serializers.CharField(read_only=True)
+    logs = serializers.ListField(read_only=True)
 
 
 class HogFunctionViewSet(TeamAndOrgViewSetMixin, LogEntryMixin, ForbidDestroyModel, viewsets.ModelViewSet):
@@ -107,6 +126,12 @@ class HogFunctionViewSet(TeamAndOrgViewSetMixin, LogEntryMixin, ForbidDestroyMod
 
     def get_serializer_class(self) -> type[BaseSerializer]:
         return HogFunctionMinimalSerializer if self.action == "list" else HogFunctionSerializer
+
+    def safely_get_queryset(self, queryset: QuerySet) -> QuerySet:
+        if self.action == "list":
+            queryset = queryset.filter(deleted=False)
+
+        return queryset
 
     @action(detail=False, methods=["GET"])
     def icons(self, request: Request, *args, **kwargs):
@@ -127,3 +152,30 @@ class HogFunctionViewSet(TeamAndOrgViewSetMixin, LogEntryMixin, ForbidDestroyMod
         icon_service = CDPIconsService()
 
         return icon_service.get_icon_http_response(id)
+
+    @action(detail=True, methods=["POST"])
+    def invocations(self, request: Request, *args, **kwargs):
+        hog_function = self.get_object()
+        serializer = HogFunctionInvocationSerializer(data=request.data, context=self.get_serializer_context())
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        configuration = serializer.validated_data["configuration"]
+        # Remove the team from the config
+        configuration.pop("team")
+
+        event = serializer.validated_data["event"]
+        mock_async_functions = serializer.validated_data["mock_async_functions"]
+
+        res = create_hog_invocation_test(
+            team_id=hog_function.team_id,
+            hog_function_id=hog_function.id,
+            event=event,
+            configuration=configuration,
+            mock_async_functions=mock_async_functions,
+        )
+
+        if res.status_code != 200:
+            return Response({"status": "error"}, status=res.status_code)
+
+        return Response(res.json())

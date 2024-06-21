@@ -1717,6 +1717,18 @@
             "required": ["key", "type", "value"],
             "type": "object"
         },
+        "CompareFilter": {
+            "additionalProperties": false,
+            "properties": {
+                "compare": {
+                    "type": "boolean"
+                },
+                "compare_to": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
         "CountPerActorMathType": {
             "enum": [
                 "avg_count_per_actor",
@@ -2388,6 +2400,29 @@
             "required": ["key", "operator", "type"],
             "type": "object"
         },
+        "DatabaseSchemaBatchExportTable": {
+            "additionalProperties": false,
+            "properties": {
+                "fields": {
+                    "additionalProperties": {
+                        "$ref": "#/definitions/DatabaseSchemaField"
+                    },
+                    "type": "object"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "const": "batch_export",
+                    "type": "string"
+                }
+            },
+            "required": ["fields", "id", "name", "type"],
+            "type": "object"
+        },
         "DatabaseSchemaDataWarehouseTable": {
             "additionalProperties": false,
             "properties": {
@@ -2575,6 +2610,9 @@
                 },
                 {
                     "$ref": "#/definitions/DatabaseSchemaViewTable"
+                },
+                {
+                    "$ref": "#/definitions/DatabaseSchemaBatchExportTable"
                 }
             ]
         },
@@ -2594,7 +2632,7 @@
                     "type": "string"
                 },
                 "type": {
-                    "enum": ["posthog", "data_warehouse", "view"],
+                    "enum": ["posthog", "data_warehouse", "view", "batch_export"],
                     "type": "string"
                 }
             },
@@ -2790,6 +2828,10 @@
         },
         "EntityType": {
             "enum": ["actions", "events", "data_warehouse", "new_entity"],
+            "type": "string"
+        },
+        "ErrorTrackingOrder": {
+            "enum": ["last_seen", "first_seen", "unique_occurrences", "unique_users", "unique_sessions"],
             "type": "string"
         },
         "EventDefinition": {
@@ -4421,6 +4463,10 @@
                     "items": {},
                     "type": "array"
                 },
+                "coloredBytecode": {
+                    "items": {},
+                    "type": "array"
+                },
                 "results": {},
                 "stdout": {
                     "type": "string"
@@ -5992,6 +6038,10 @@
                             "items": {},
                             "type": "array"
                         },
+                        "coloredBytecode": {
+                            "items": {},
+                            "type": "array"
+                        },
                         "results": {},
                         "stdout": {
                             "type": "string"
@@ -7040,6 +7090,10 @@
                         {
                             "const": "console_log_query",
                             "type": "string"
+                        },
+                        {
+                            "const": "snapshot_source",
+                            "type": "string"
                         }
                     ]
                 },
@@ -7567,6 +7621,9 @@
                 "compare": {
                     "type": "boolean"
                 },
+                "compare_to": {
+                    "type": "string"
+                },
                 "display": {
                     "$ref": "#/definitions/ChartDisplayType"
                 },
@@ -7588,6 +7645,10 @@
         "StickinessQuery": {
             "additionalProperties": false,
             "properties": {
+                "compareFilter": {
+                    "$ref": "#/definitions/CompareFilter",
+                    "description": "Compare to date range"
+                },
                 "dateRange": {
                     "$ref": "#/definitions/InsightDateRange",
                     "description": "Date range for the query"
@@ -7916,10 +7977,6 @@
                 "breakdown_histogram_bin_count": {
                     "type": "number"
                 },
-                "compare": {
-                    "default": false,
-                    "type": "boolean"
-                },
                 "decimalPlaces": {
                     "type": "number"
                 },
@@ -7977,6 +8034,9 @@
                 "compare": {
                     "type": "boolean"
                 },
+                "compare_to": {
+                    "type": "string"
+                },
                 "decimal_places": {
                     "type": "number"
                 },
@@ -8020,6 +8080,10 @@
                 "breakdownFilter": {
                     "$ref": "#/definitions/BreakdownFilter",
                     "description": "Breakdown of the events and actions"
+                },
+                "compareFilter": {
+                    "$ref": "#/definitions/CompareFilter",
+                    "description": "Compare to date range"
                 },
                 "dateRange": {
                     "$ref": "#/definitions/InsightDateRange",
@@ -8227,6 +8291,7 @@
                     "type": "object"
                 },
                 "useSessionsTable": {
+                    "deprecated": "ignored, always treated as enabled *",
                     "type": "boolean"
                 }
             },
@@ -8343,6 +8408,7 @@
                     "type": "object"
                 },
                 "useSessionsTable": {
+                    "deprecated": "ignored, always treated as enabled *",
                     "type": "boolean"
                 }
             },
@@ -8432,6 +8498,7 @@
                     "type": "object"
                 },
                 "useSessionsTable": {
+                    "deprecated": "ignored, always treated as enabled *",
                     "type": "boolean"
                 }
             },

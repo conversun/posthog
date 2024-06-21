@@ -253,6 +253,7 @@ export interface HogQLQuery extends DataNode<HogQLQueryResponse> {
 export interface HogQueryResponse {
     results: any
     bytecode?: any[]
+    coloredBytecode?: any[]
     stdout?: string
 }
 
@@ -678,8 +679,6 @@ export type TrendsFilterLegacy = Omit<
 export type TrendsFilter = {
     /** @default 1 */
     smoothingIntervals?: integer
-    /** @default false */
-    compare?: TrendsFilterLegacy['compare']
     formula?: TrendsFilterLegacy['formula']
     /** @default ActionsLineGraph */
     display?: TrendsFilterLegacy['display']
@@ -699,6 +698,22 @@ export type TrendsFilter = {
     hidden_legend_indexes?: TrendsFilterLegacy['hidden_legend_indexes']
 }
 
+export const TRENDS_FILTER_PROPERTIES = new Set([
+    'smoothingIntervals',
+    'formula',
+    'display',
+    'showLegend',
+    'breakdown_histogram_bin_count',
+    'aggregationAxisFormat',
+    'aggregationAxisPrefix',
+    'aggregationAxisPostfix',
+    'decimalPlaces',
+    'showValuesOnSeries',
+    'showLabelsOnSeries',
+    'showPercentStackView',
+    'hidden_legend_indexes',
+])
+
 export interface TrendsQueryResponse extends AnalyticsQueryResponseBase<Record<string, any>[]> {}
 
 export type CachedTrendsQueryResponse = CachedQueryResponse<TrendsQueryResponse>
@@ -717,6 +732,8 @@ export interface TrendsQuery extends InsightsQueryBase<TrendsQueryResponse> {
     trendsFilter?: TrendsFilter
     /** Breakdown of the events and actions */
     breakdownFilter?: BreakdownFilter
+    /** Compare to date range */
+    compareFilter?: CompareFilter
 }
 
 /** `FunnelsFilterType` minus everything inherited from `FilterType` and persons modal related params
@@ -896,6 +913,14 @@ export type StickinessFilter = {
     hidden_legend_indexes?: StickinessFilterLegacy['hidden_legend_indexes']
 }
 
+export const STICKINESS_FILTER_PROPERTIES = new Set([
+    'compare',
+    'display',
+    'showLegend',
+    'showValuesOnSeries',
+    'hidden_legend_indexes',
+])
+
 export interface StickinessQueryResponse extends AnalyticsQueryResponseBase<Record<string, any>[]> {}
 
 export type CachedStickinessQueryResponse = CachedQueryResponse<StickinessQueryResponse>
@@ -912,6 +937,8 @@ export interface StickinessQuery
     series: AnyEntityNode[]
     /** Properties specific to the stickiness insight */
     stickinessFilter?: StickinessFilter
+    /** Compare to date range */
+    compareFilter?: CompareFilter
 }
 
 /** `LifecycleFilterType` minus everything inherited from `FilterType` */
@@ -1121,6 +1148,7 @@ interface WebAnalyticsQueryBase<R extends Record<string, any>> extends DataNode<
         enabled?: boolean
         forceSamplingRate?: SamplingRate
     }
+    /** @deprecated ignored, always treated as enabled **/
     useSessionsTable?: boolean
 }
 
@@ -1161,6 +1189,8 @@ export interface WebTopClicksQueryResponse extends AnalyticsQueryResponseBase<un
 }
 
 export type CachedWebTopClicksQueryResponse = CachedQueryResponse<WebTopClicksQueryResponse>
+
+export type ErrorTrackingOrder = 'last_seen' | 'first_seen' | 'unique_occurrences' | 'unique_users' | 'unique_sessions'
 
 export enum WebStatsBreakdown {
     Page = 'Page',
@@ -1419,7 +1449,7 @@ export interface DatabaseSchemaField {
 }
 
 export interface DatabaseSchemaTableCommon {
-    type: 'posthog' | 'data_warehouse' | 'view'
+    type: 'posthog' | 'data_warehouse' | 'view' | 'batch_export'
     id: string
     name: string
     fields: Record<string, DatabaseSchemaField>
@@ -1442,10 +1472,15 @@ export interface DatabaseSchemaDataWarehouseTable extends DatabaseSchemaTableCom
     source?: DatabaseSchemaSource
 }
 
+export interface DatabaseSchemaBatchExportTable extends DatabaseSchemaTableCommon {
+    type: 'batch_export'
+}
+
 export type DatabaseSchemaTable =
     | DatabaseSchemaPostHogTable
     | DatabaseSchemaDataWarehouseTable
     | DatabaseSchemaViewTable
+    | DatabaseSchemaBatchExportTable
 
 export interface DatabaseSchemaQueryResponse {
     tables: Record<string, DatabaseSchemaTable>
@@ -1534,6 +1569,11 @@ export interface BreakdownFilter {
     breakdown_group_type_index?: integer | null
     breakdown_histogram_bin_count?: integer // trends breakdown histogram bin
     breakdown_hide_other_aggregation?: boolean | null // hides the "other" field for trends
+}
+
+export interface CompareFilter {
+    compare?: boolean
+    compare_to?: string
 }
 
 // TODO: Rename to `DashboardFilters` for consistency with `HogQLFilters`

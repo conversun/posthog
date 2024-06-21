@@ -44,7 +44,7 @@ from posthog.models.utils import UUIDT, generate_random_token
 from posthog.permissions import APIScopePermission
 from posthog.plugins import can_configure_plugins, can_install_plugins, parse_url
 from posthog.plugins.access import can_globally_manage_plugins, has_plugin_access_level
-from posthog.plugins.reload import populate_plugin_capabilities_on_workers
+from posthog.plugins.plugin_server_api import populate_plugin_capabilities_on_workers
 from posthog.queries.app_metrics.app_metrics import TeamPluginsDeliveryRateQuery
 from posthog.utils import format_query_params_absolute_url
 
@@ -906,6 +906,7 @@ class PipelineTransformationsViewSet(PluginViewSet):
 
 class PipelineTransformationsConfigsViewSet(PluginConfigViewSet):
     def safely_get_queryset(self, queryset):
+        queryset = super().safely_get_queryset(queryset)
         return queryset.filter(
             Q(plugin__capabilities__has_key="methods") & Q(plugin__capabilities__methods__contains=["processEvent"])
         )
@@ -922,6 +923,7 @@ class PipelineDestinationsViewSet(PluginViewSet):
 
 class PipelineDestinationsConfigsViewSet(PluginConfigViewSet):
     def safely_get_queryset(self, queryset):
+        queryset = super().safely_get_queryset(queryset)
         return queryset.filter(
             Q(plugin__capabilities__has_key="methods")
             & (
@@ -939,6 +941,7 @@ class PipelineFrontendAppsViewSet(PluginViewSet):
 
 class PipelineFrontendAppsConfigsViewSet(PluginConfigViewSet):
     def safely_get_queryset(self, queryset):
+        queryset = super().safely_get_queryset(queryset)
         return queryset.exclude(
             Q(plugin__capabilities__has_key="methods") | Q(plugin__capabilities__has_key="scheduled_tasks")
         )
@@ -961,6 +964,7 @@ class PipelineImportAppsViewSet(PluginViewSet):
 
 class PipelineImportAppsConfigsViewSet(PluginConfigViewSet):
     def safely_get_queryset(self, queryset):
+        queryset = super().safely_get_queryset(queryset)
         return queryset.filter(
             Q(Q(plugin__capabilities__has_key="scheduled_tasks") & ~Q(plugin__capabilities__scheduled_tasks=[]))
             | Q(
