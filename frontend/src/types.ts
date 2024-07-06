@@ -967,10 +967,6 @@ export type DurationType = 'duration' | 'active_seconds' | 'inactive_seconds'
 export type FilterableLogLevel = 'info' | 'warn' | 'error'
 
 export interface RecordingFilters {
-    /**
-     * live mode is front end only, sets date_from and date_to to the last hour
-     */
-    live_mode?: boolean
     date_from?: string | null
     date_to?: string | null
     events?: FilterType['events']
@@ -986,10 +982,6 @@ export interface RecordingFilters {
 }
 
 export interface RecordingUniversalFilters {
-    /**
-     * live mode is front end only, sets date_from and date_to to the last hour
-     */
-    live_mode?: boolean
     date_from?: string | null
     date_to?: string | null
     duration: RecordingDurationFilter[]
@@ -1624,7 +1616,7 @@ export interface BillingPlanType {
     tiers?: BillingTierType[] | null
     unit_amount_usd: string | null
     included_if?: 'no_active_subscription' | 'has_subscription' | null
-    initial_billing_limit?: number
+    initial_billing_limit?: number | null
     contact_support: boolean | null
 }
 
@@ -1653,6 +1645,7 @@ export enum InsightColor {
 export interface Cacheable {
     last_refresh: string | null
     next_allowed_client_refresh?: string | null
+    cache_target_age?: string | null
 }
 
 export interface TileLayout extends Omit<Layout, 'i'> {
@@ -2602,6 +2595,7 @@ export interface Survey {
         seenSurveyWaitPeriodInDays?: number
         urlMatchType?: SurveyUrlMatchType
         events: {
+            repeatedActivation?: boolean
             values: {
                 name: string
             }[]
