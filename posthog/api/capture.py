@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from enum import Enum
 from kafka.errors import KafkaError, MessageSizeTooLargeError, KafkaTimeoutError
 from kafka.producer.future import FutureRecordMetadata
-from prometheus_client import Counter, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 from rest_framework import status
 from sentry_sdk import configure_scope
 from sentry_sdk.api import capture_exception, start_span
@@ -27,7 +27,7 @@ from ee.billing.quota_limiting import QuotaLimitingCaches
 from posthog.api.utils import get_data, get_token, safe_clickhouse_string
 from posthog.cache_utils import cache_for
 from posthog.exceptions import generate_exception_response
-from posthog.kafka_client.client import KafkaProducer, sessionRecordingKafkaProducer
+from posthog.kafka_client.client import KafkaProducer, session_recording_kafka_producer
 from posthog.kafka_client.topics import (
     KAFKA_EVENTS_PLUGIN_INGESTION_HISTORICAL,
     KAFKA_SESSION_RECORDING_EVENTS,
@@ -114,6 +114,11 @@ KAFKA_TIMEOUT_ERROR_COUNTER = Counter(
     # retry_count should only have 0, 1, or 2
     # and status_code only has 400 or 502
     labelnames=["retry_count", "status_code"],
+)
+
+REPLAY_MESSAGE_PRODUCTION_TIMER = Histogram(
+    "capture_replay_message_production_seconds",
+    "Time taken to produce a set of replay messages",
 )
 
 # This is a heuristic of ids we have seen used as anonymous. As they frequently
@@ -208,7 +213,7 @@ def log_event(
     # TODO: Handle Kafka being unavailable with exponential backoff retries
     try:
         if event_name in SESSION_RECORDING_DEDICATED_KAFKA_EVENTS:
-            producer = sessionRecordingKafkaProducer()
+            producer = session_recording_kafka_producer()
         else:
             producer = KafkaProducer()
 
@@ -556,36 +561,39 @@ def get_event(request):
             # This is mostly a copy of above except we only log, we don't error out
             if alternative_replay_events:
                 processed_events = list(preprocess_events(alternative_replay_events))
-                for event, event_uuid, distinct_id in processed_events:
-                    capture_args = (
-                        event,
-                        distinct_id,
-                        ip,
-                        site_url,
-                        now,
-                        sent_at,
-                        event_uuid,
-                        token,
-                    )
-                    capture_kwargs = {
-                        "extra_headers": [("lib_version", lib_version)],
-                    }
-                    this_future = capture_internal(*capture_args, **capture_kwargs)
-                    replay_futures.append((this_future, capture_args, capture_kwargs))
+                with REPLAY_MESSAGE_PRODUCTION_TIMER.time():
+                    for event, event_uuid, distinct_id in processed_events:
+                        capture_args = (
+                            event,
+                            distinct_id,
+                            ip,
+                            site_url,
+                            now,
+                            sent_at,
+                            event_uuid,
+                            token,
+                        )
+                        capture_kwargs = {
+                            "extra_headers": [
+                                ("lib_version", lib_version),
+                            ],
+                        }
+                        this_future = capture_internal(*capture_args, **capture_kwargs)
+                        replay_futures.append((this_future, capture_args, capture_kwargs))
 
-                start_time = time.monotonic()
-                for future, args, kwargs in replay_futures:
-                    if future is not None:
-                        try:
-                            future.get(
-                                timeout=settings.KAFKA_PRODUCE_ACK_TIMEOUT_SECONDS - (time.monotonic() - start_time)
-                            )
-                        except MessageSizeTooLargeError as mstle:
-                            REPLAY_MESSAGE_SIZE_TOO_LARGE_COUNTER.inc()
-                            warning_event = replace_with_warning(args[0], token, mstle, lib_version)
-                            if warning_event:
-                                warning_future = capture_internal(warning_event, *args[1:], **kwargs)
-                                warning_future.get(timeout=settings.KAFKA_PRODUCE_ACK_TIMEOUT_SECONDS)
+                    start_time = time.monotonic()
+                    for future, args, kwargs in replay_futures:
+                        if future is not None:
+                            try:
+                                future.get(
+                                    timeout=settings.KAFKA_PRODUCE_ACK_TIMEOUT_SECONDS - (time.monotonic() - start_time)
+                                )
+                            except MessageSizeTooLargeError as mstle:
+                                REPLAY_MESSAGE_SIZE_TOO_LARGE_COUNTER.inc()
+                                warning_event = replace_with_warning(args[0], token, mstle, lib_version)
+                                if warning_event:
+                                    warning_future = capture_internal(warning_event, *args[1:], **kwargs)
+                                    warning_future.get(timeout=settings.KAFKA_PRODUCE_ACK_TIMEOUT_SECONDS)
 
     except ValueError as e:
         with sentry_sdk.push_scope() as scope:
@@ -629,7 +637,16 @@ def get_event(request):
             scope.set_tag("ph-team-token", token)
             capture_exception(exc, {"data": data})
         logger.exception("kafka_session_recording_produce_failure", exc_info=exc)
-        pass
+        return cors_response(
+            request,
+            generate_exception_response(
+                "capture",
+                "Unable to store recording snapshot. Please try again. If you are the owner of this app you can check the logs for further details.",
+                code="server_error",
+                type="server_error",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ),
+        )
 
     statsd.incr("posthog_cloud_raw_endpoint_success", tags={"endpoint": "capture"})
     return cors_response(request, JsonResponse({"status": 1}))
@@ -810,7 +827,11 @@ def capture_internal(
             overflowing = session_id in _list_overflowing_keys(InputType.REPLAY)
 
         return log_event(
-            parsed_event, event["event"], partition_key=session_id, headers=headers, overflowing=overflowing
+            parsed_event,
+            event["event"],
+            partition_key=session_id,
+            headers=headers,
+            overflowing=overflowing,
         )
 
     # We aim to always partition by {team_id}:{distinct_id} but allow
