@@ -119,20 +119,26 @@ class DataImportPipeline:
                     if isinstance(e.exception, DeltaError):
                         if e.exception.args[0] != "Generic error: No data source supplied to write command.":
                             raise
+                    else:
+                        raise
 
-                row_counts = pipeline.last_trace.last_normalize_info.row_counts
+                if pipeline.last_trace.last_normalize_info is not None:
+                    row_counts = pipeline.last_trace.last_normalize_info.row_counts
+                else:
+                    row_counts = {}
                 # Remove any DLT tables from the counts
                 filtered_rows = dict(filter(lambda pair: not pair[0].startswith("_dlt"), row_counts.items()))
                 counts = Counter(filtered_rows)
                 total_counts = counts + total_counts
 
-                async_to_sync(validate_schema_and_update_table)(
-                    run_id=self.inputs.run_id,
-                    team_id=self.inputs.team_id,
-                    schema_id=self.inputs.schema_id,
-                    table_schema=self.source.schema.tables,
-                    row_count=total_counts.total(),
-                )
+                if total_counts.total() != 0:
+                    async_to_sync(validate_schema_and_update_table)(
+                        run_id=self.inputs.run_id,
+                        team_id=self.inputs.team_id,
+                        schema_id=self.inputs.schema_id,
+                        table_schema=self.source.schema.tables,
+                        row_count=total_counts.total(),
+                    )
 
                 pipeline_runs = pipeline_runs + 1
         else:
@@ -148,18 +154,26 @@ class DataImportPipeline:
                 if isinstance(e.exception, DeltaError):
                     if e.exception.args[0] != "Generic error: No data source supplied to write command.":
                         raise
-            row_counts = pipeline.last_trace.last_normalize_info.row_counts
+                else:
+                    raise
+
+            if pipeline.last_trace.last_normalize_info is not None:
+                row_counts = pipeline.last_trace.last_normalize_info.row_counts
+            else:
+                row_counts = {}
+
             filtered_rows = dict(filter(lambda pair: not pair[0].startswith("_dlt"), row_counts.items()))
             counts = Counter(filtered_rows)
             total_counts = total_counts + counts
 
-            async_to_sync(validate_schema_and_update_table)(
-                run_id=self.inputs.run_id,
-                team_id=self.inputs.team_id,
-                schema_id=self.inputs.schema_id,
-                table_schema=self.source.schema.tables,
-                row_count=total_counts.total(),
-            )
+            if total_counts.total() != 0:
+                async_to_sync(validate_schema_and_update_table)(
+                    run_id=self.inputs.run_id,
+                    team_id=self.inputs.team_id,
+                    schema_id=self.inputs.schema_id,
+                    table_schema=self.source.schema.tables,
+                    row_count=total_counts.total(),
+                )
 
         return dict(total_counts)
 
