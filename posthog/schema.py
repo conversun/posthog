@@ -155,6 +155,7 @@ class ChartAxis(BaseModel):
 class ChartDisplayType(StrEnum):
     ACTIONS_LINE_GRAPH = "ActionsLineGraph"
     ACTIONS_BAR = "ActionsBar"
+    ACTIONS_STACKED_BAR = "ActionsStackedBar"
     ACTIONS_AREA_GRAPH = "ActionsAreaGraph"
     ACTIONS_LINE_GRAPH_CUMULATIVE = "ActionsLineGraphCumulative"
     BOLD_NUMBER = "BoldNumber"
@@ -322,6 +323,32 @@ class EntityType(StrEnum):
     EVENTS = "events"
     DATA_WAREHOUSE = "data_warehouse"
     NEW_ENTITY = "new_entity"
+
+
+class Status(StrEnum):
+    ARCHIVED = "archived"
+    ACTIVE = "active"
+    RESOLVED = "resolved"
+    PENDING_RELEASE = "pending_release"
+
+
+class ErrorTrackingGroup(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    assignee: Optional[float] = None
+    description: Optional[str] = None
+    events: Optional[list[dict[str, Any]]] = None
+    exception_type: Optional[str] = None
+    fingerprint: str
+    first_seen: AwareDatetime
+    last_seen: AwareDatetime
+    merged_fingerprints: list[str]
+    occurrences: float
+    sessions: float
+    status: Status
+    users: float
+    volume: Optional[Any] = None
 
 
 class Order(StrEnum):
@@ -818,7 +845,9 @@ class QueryStatus(BaseModel):
         ),
     )
     dashboard_id: Optional[int] = None
-    end_time: Optional[AwareDatetime] = None
+    end_time: Optional[AwareDatetime] = Field(
+        default=None, description="When did the query execution task finish (whether successfully or not)."
+    )
     error: Optional[bool] = Field(
         default=False,
         description=(
@@ -830,10 +859,13 @@ class QueryStatus(BaseModel):
     id: str
     insight_id: Optional[int] = None
     labels: Optional[list[str]] = None
+    pickup_time: Optional[AwareDatetime] = Field(
+        default=None, description="When was the query execution task picked up by a worker."
+    )
     query_async: Literal[True] = Field(default=True, description="ONLY async queries use QueryStatus.")
     query_progress: Optional[ClickhouseQueryProgress] = None
     results: Optional[Any] = None
-    start_time: Optional[AwareDatetime] = None
+    start_time: Optional[AwareDatetime] = Field(default=None, description="When was query execution task enqueued.")
     task_id: Optional[str] = None
     team_id: int
 
@@ -1326,8 +1358,8 @@ class Breakdown(BaseModel):
     group_type_index: Optional[int] = None
     histogram_bin_count: Optional[int] = None
     normalize_url: Optional[bool] = None
+    property: str
     type: Optional[MultipleBreakdownType] = None
-    value: str
 
 
 class BreakdownFilter(BaseModel):
@@ -1405,7 +1437,7 @@ class CachedErrorTrackingQueryResponse(BaseModel):
     calculation_trigger: Optional[str] = Field(
         default=None, description="What triggered the calculation of the query, leave empty if user/immediate"
     )
-    columns: Optional[list] = None
+    columns: Optional[list[str]] = None
     error: Optional[str] = Field(
         default=None,
         description="Query error. Returned only if 'explain' or `modifiers.debug` is true. Throws an error otherwise.",
@@ -1423,7 +1455,7 @@ class CachedErrorTrackingQueryResponse(BaseModel):
     query_status: Optional[QueryStatus] = Field(
         default=None, description="Query status indicates whether next to the provided data, a query is still running."
     )
-    results: list
+    results: list[ErrorTrackingGroup]
     timezone: str
     timings: Optional[list[QueryTiming]] = Field(
         default=None, description="Measured timings for different parts of the query generation process"
@@ -1958,7 +1990,7 @@ class Response7(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    columns: Optional[list] = None
+    columns: Optional[list[str]] = None
     error: Optional[str] = Field(
         default=None,
         description="Query error. Returned only if 'explain' or `modifiers.debug` is true. Throws an error otherwise.",
@@ -1970,7 +2002,7 @@ class Response7(BaseModel):
         default=None, description="Modifiers used when performing the query"
     )
     offset: Optional[int] = None
-    results: list
+    results: list[ErrorTrackingGroup]
     timings: Optional[list[QueryTiming]] = Field(
         default=None, description="Measured timings for different parts of the query generation process"
     )
@@ -2055,7 +2087,7 @@ class ErrorTrackingQueryResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    columns: Optional[list] = None
+    columns: Optional[list[str]] = None
     error: Optional[str] = Field(
         default=None,
         description="Query error. Returned only if 'explain' or `modifiers.debug` is true. Throws an error otherwise.",
@@ -2067,7 +2099,7 @@ class ErrorTrackingQueryResponse(BaseModel):
         default=None, description="Modifiers used when performing the query"
     )
     offset: Optional[int] = None
-    results: list
+    results: list[ErrorTrackingGroup]
     timings: Optional[list[QueryTiming]] = Field(
         default=None, description="Measured timings for different parts of the query generation process"
     )
@@ -2572,7 +2604,7 @@ class QueryResponseAlternative13(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    columns: Optional[list] = None
+    columns: Optional[list[str]] = None
     error: Optional[str] = Field(
         default=None,
         description="Query error. Returned only if 'explain' or `modifiers.debug` is true. Throws an error otherwise.",
@@ -2584,7 +2616,7 @@ class QueryResponseAlternative13(BaseModel):
         default=None, description="Modifiers used when performing the query"
     )
     offset: Optional[int] = None
-    results: list
+    results: list[ErrorTrackingGroup]
     timings: Optional[list[QueryTiming]] = Field(
         default=None, description="Measured timings for different parts of the query generation process"
     )
@@ -2757,7 +2789,7 @@ class QueryResponseAlternative21(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    columns: Optional[list] = None
+    columns: Optional[list[str]] = None
     error: Optional[str] = Field(
         default=None,
         description="Query error. Returned only if 'explain' or `modifiers.debug` is true. Throws an error otherwise.",
@@ -2769,7 +2801,7 @@ class QueryResponseAlternative21(BaseModel):
         default=None, description="Modifiers used when performing the query"
     )
     offset: Optional[int] = None
-    results: list
+    results: list[ErrorTrackingGroup]
     timings: Optional[list[QueryTiming]] = Field(
         default=None, description="Measured timings for different parts of the query generation process"
     )
@@ -2990,6 +3022,7 @@ class WebOverviewQuery(BaseModel):
     )
     compare: Optional[bool] = None
     dateRange: Optional[DateRange] = None
+    filterTestAccounts: Optional[bool] = None
     kind: Literal["WebOverviewQuery"] = "WebOverviewQuery"
     modifiers: Optional[HogQLQueryModifiers] = Field(
         default=None, description="Modifiers used when performing the query"
@@ -3007,6 +3040,7 @@ class WebStatsTableQuery(BaseModel):
     breakdownBy: WebStatsBreakdown
     dateRange: Optional[DateRange] = None
     doPathCleaning: Optional[bool] = None
+    filterTestAccounts: Optional[bool] = None
     includeBounceRate: Optional[bool] = None
     includeScrollDepth: Optional[bool] = None
     kind: Literal["WebStatsTableQuery"] = "WebStatsTableQuery"
@@ -3025,6 +3059,7 @@ class WebTopClicksQuery(BaseModel):
         extra="forbid",
     )
     dateRange: Optional[DateRange] = None
+    filterTestAccounts: Optional[bool] = None
     kind: Literal["WebTopClicksQuery"] = "WebTopClicksQuery"
     modifiers: Optional[HogQLQueryModifiers] = Field(
         default=None, description="Modifiers used when performing the query"
@@ -4028,6 +4063,7 @@ class ErrorTrackingQuery(BaseModel):
         extra="forbid",
     )
     dateRange: DateRange
+    eventColumns: Optional[list[str]] = None
     filterGroup: Optional[PropertyGroupFilter] = None
     filterTestAccounts: Optional[bool] = None
     fingerprint: Optional[str] = None
@@ -4039,7 +4075,7 @@ class ErrorTrackingQuery(BaseModel):
     offset: Optional[int] = None
     order: Optional[Order] = None
     response: Optional[ErrorTrackingQueryResponse] = None
-    select: list[str]
+    select: Optional[list[str]] = None
 
 
 class FunnelsQuery(BaseModel):
