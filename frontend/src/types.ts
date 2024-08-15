@@ -33,6 +33,7 @@ import { Scene } from 'scenes/sceneTypes'
 import { QueryContext } from '~/queries/types'
 
 import type {
+    AnomalyCondition,
     DashboardFilter,
     DatabaseSchemaField,
     HogQLQuery,
@@ -1933,6 +1934,11 @@ export interface PluginConfigFilters {
     filter_test_accounts?: boolean
 }
 
+export interface HogConfigFilters extends PluginConfigFilters {
+    bytecode?: any[]
+    bytecode_error?: string
+}
+
 // TODO: Rename to PluginConfigWithPluginInfo once the are removed from the frontend
 export interface PluginConfigWithPluginInfoNew extends PluginConfigTypeNew {
     plugin_info: PluginType
@@ -2269,6 +2275,7 @@ export interface RetentionFilterType extends FilterType {
 
     //frontend only
     show_mean?: boolean
+    cumulative?: boolean
 }
 export interface LifecycleFilterType extends FilterType {
     /** @deprecated */
@@ -2960,6 +2967,9 @@ export interface PreflightStatus {
         hubspot: {
             client_id?: string
         }
+        salesforce: {
+            client_id?: string
+        }
     }
     /** Whether PostHog is running in DEBUG mode. */
     is_debug?: boolean
@@ -3176,6 +3186,7 @@ export interface _TrendsExperimentResults extends BaseExperimentResults {
     filters: TrendsFilterType
     variants: TrendExperimentVariant[]
     last_refresh?: string | null
+    credible_intervals: { [key: string]: [number, number] }
 }
 
 export interface _FunnelExperimentResults extends BaseExperimentResults {
@@ -4024,7 +4035,14 @@ export type BatchExportServiceRedshift = {
 // src/scenes/pipeline/icons/
 // and update RenderBatchExportIcon
 // and update batchExportServiceNames in pipelineNodeNewLogic
-export const BATCH_EXPORT_SERVICE_NAMES = ['S3', 'Snowflake', 'Postgres', 'BigQuery', 'Redshift', 'HTTP']
+export const BATCH_EXPORT_SERVICE_NAMES: BatchExportService['type'][] = [
+    'S3',
+    'Snowflake',
+    'Postgres',
+    'BigQuery',
+    'Redshift',
+    'HTTP',
+]
 export type BatchExportService =
     | BatchExportServiceS3
     | BatchExportServiceSnowflake
@@ -4228,6 +4246,9 @@ export interface SourceConfig {
     caption: string | React.ReactNode
     fields: SourceFieldConfig[]
     disabledReason?: string | null
+    showPrefix?: (payload: Record<string, any>) => boolean
+    showSourceForm?: (payload: Record<string, any>) => boolean
+    oauthPayload?: string[]
 }
 
 export interface ProductPricingTierSubrows {
@@ -4274,7 +4295,7 @@ export type OnboardingProduct = {
 }
 
 export type HogFunctionInputSchemaType = {
-    type: 'string' | 'boolean' | 'dictionary' | 'choice' | 'json' | 'integration' | 'integration_field'
+    type: 'string' | 'boolean' | 'dictionary' | 'choice' | 'json' | 'integration' | 'integration_field' | 'email'
     key: string
     label: string
     choices?: { value: string; label: string }[]
@@ -4293,6 +4314,13 @@ export type HogFunctionInputType = {
     bytecode?: any
 }
 
+export type HogFunctionFiltersMasking = {
+    ttl: number | null
+    threshold?: number | null
+    hash: string
+    bytecode?: any
+}
+
 export type HogFunctionType = {
     id: string
     icon_url?: string
@@ -4306,7 +4334,8 @@ export type HogFunctionType = {
 
     inputs_schema?: HogFunctionInputSchemaType[]
     inputs?: Record<string, HogFunctionInputType>
-    filters?: PluginConfigFilters | null
+    masking?: HogFunctionFiltersMasking | null
+    filters?: HogConfigFilters | null
     template?: HogFunctionTemplateType
     status?: HogFunctionStatus
 }
@@ -4378,13 +4407,6 @@ export type HogFunctionInvocationGlobals = {
             properties: Record<string, any>
         }
     >
-}
-
-export interface AnomalyCondition {
-    absoluteThreshold: {
-        lower?: number
-        upper?: number
-    }
 }
 
 export interface AlertType {
